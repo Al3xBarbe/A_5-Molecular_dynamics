@@ -1,0 +1,6 @@
+{
+    "command": "C:\\msys64\\ucrt64\\bin\\gfortran.exe",
+    "fortran.linter.compilerPath": "C:\\msys64\\ucrt64\\bin\\gfortran.exe",
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda"
+}

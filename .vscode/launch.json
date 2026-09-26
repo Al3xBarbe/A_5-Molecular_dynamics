@@ -1,0 +1,30 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Fortran: Run",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/fortran/main.exe",
+            "cwd": "${workspaceFolder}/fortran",
+            "stopAtEntry": false,
+            "externalConsole": true,
+            "miDebuggerPath": "C:\\msys64\\ucrt64\\bin\\gdb.exe",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "C:\\msys64\\ucrt64\\bin;${env:PATH}"
+                }
+            ],
+            "preLaunchTask": "Compilar Fortran"
+        },
+        {
+            "name": "Python: Run",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/Py/main.py",
+            "console": "externalTerminal",
+            "python": "C:\\Users\\MSI\\anaconda3\\envs\\A5_molec\\python.exe"
+        }
+    ]
+}

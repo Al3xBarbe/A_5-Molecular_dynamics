@@ -1,0 +1,22 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Compilar Fortran",
+            "type": "process",
+            "command": "C:\\msys64\\ucrt64\\bin\\gfortran.exe",
+            "args": [
+                "-g",
+                "-O0",
+                "${workspaceFolder}/fortran/main.f90",
+                "-o",
+                "${workspaceFolder}/fortran/main.exe"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}
