@@ -98,7 +98,7 @@ module algoritmos_estocastios
         p = po
 
         open(unit=3, file="euler_maruyama.txt", status="replace")
-        write(3,*) x, p
+        write(3,*) 0.0, x, p
         do i = 1, pasos/2
 
             call generar_normal(semilla, a, c, modulo, n1, n2, aux)
@@ -109,13 +109,13 @@ module algoritmos_estocastios
             x = x + (p/m)*h 
             p = p - k*aux2*h - nu*p*h + sqrt(2.0*nu*m*beta_inv*h)*n1
             
-            write(3,*) x, p
+            write(3,*) (2*i-1)*h,x, p
 
             aux2 = x
             x = x + (p/m)*h 
             p = p - k*aux2*h - nu*p*h + sqrt(2.0*nu*m*beta_inv*h)*n2
 
-            write(3,*) x, p
+            write(3,*) (2*i)*h, x, p
 
         end do
         close(3)
@@ -141,7 +141,7 @@ module algoritmos_estocastios
         p = po
 
         open(unit=4, file="runge_kutta_2.txt", status="replace")
-        write(4,*) x, p
+        write(4,*) 0.0,x, p
         z_det=sqrt(2.0*nu*m*beta_inv*h)
         do i = 1, pasos/2
 
@@ -157,7 +157,7 @@ module algoritmos_estocastios
             x = x + 0.5*h*(fx1 + fx2)
             p = p + 0.5*h*(fg1 + fg2) + z_det*n1
 
-            write(4,*) x, p
+            write(4,*) (2*i-1)*h, x, p
 
             fx1 = (p+z_det*n2)/m
             fg1 = -k*x - nu*(p+z_det*n2)
@@ -168,7 +168,7 @@ module algoritmos_estocastios
             x = x + 0.5*h*(fx1 + fx2)
             p = p + 0.5*h*(fg1 + fg2) + z_det*n2
 
-            write(4,*) x, p
+            write(4,*) (2*i)*h, x, p
 
         end do
 
@@ -195,7 +195,7 @@ module algoritmos_estocastios
         p = po
 
         open(unit=5, file="verlet_exp_est.txt", status="replace")
-        write(5,*) x, p
+        write(5,*) 0.0,x, p
         z_det=sqrt(2.0*nu*m*beta_inv*h)
         verlet_a = (1-(nu*h)/2)/(1+(nu*h)/2)
         verlet_b = 1/(1+(nu*h)/2)
@@ -210,13 +210,13 @@ module algoritmos_estocastios
             x = x + verlet_b*h*p + (-verlet_b*h*h*x)/(2*m) + verlet_b*h*z_det*n1/(2*m)
             p = verlet_a*p - h*(verlet_a*k*aux2 + k*x)/(2*m) + verlet_b*z_det*n1/(2*m)
 
-            write(5,*) x, p
+            write(5,*) (2*i-1)*h, x, p
 
             aux2=x
             x = x + verlet_b*h*p + (-verlet_b*h*h*x)/(2*m) + verlet_b*h*z_det*n2/(2*m)
             p = verlet_a*p - h*(verlet_a*k*aux2 + k*x)/(2*m) + verlet_b*z_det*n2/(2*m)
 
-            write(5,*) x, p
+            write(5,*) (2*i)*h, x, p
 
         end do
         close(5)
@@ -244,14 +244,14 @@ program main
 
     ! Parametros de la simulacion
     pasos = 100000
-    h=1
+    h=0.01
 
     x0=5.0
     p0=0.0
     m=1.0
     k=1.0
     beta_inv=1.0
-    nu=1.0  
+    nu=10 
 
     call euler_maruyama(h,x0,p0,m,k,beta_inv,nu,pasos)
     call Runge_Kutta_2(pasos, h, x0, p0, m, k, beta_inv, nu)
