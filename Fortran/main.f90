@@ -84,7 +84,7 @@ module algoritmos_estocastios
         integer, intent(in) :: pasos
         real, intent(in) :: h, xo, po, m, k, beta_inv, nu
         integer(kind=8) :: semilla, a, c, modulo
-        real :: x, p, n1, n2
+        real :: x, p, n1, n2, aux2
         integer(kind=8) :: aux
         integer :: i
 
@@ -105,13 +105,15 @@ module algoritmos_estocastios
             semilla = aux
 
             ! Actualizacion de las variables usando Euler-Maruyama
+            aux2 = x
             x = x + (p/m)*h 
-            p = p - k*x*h + sqrt(2.0*nu*m*beta_inv*nu*h)*n1
+            p = p - k*aux2*h - nu*p*h + sqrt(2.0*nu*m*beta_inv*h)*n1
             
             write(3,*) x, p
 
+            aux2 = x
             x = x + (p/m)*h 
-            p = p - k*x*h -nu*p*h + sqrt(2.0*nu*m*beta_inv*nu*h)*n2
+            p = p - k*aux2*h - nu*p*h + sqrt(2.0*nu*m*beta_inv*h)*n2
 
             write(3,*) x, p
 
@@ -226,10 +228,11 @@ end module algoritmos_estocastios
 program main
 
     use generador_normal
+    use algoritmos_estocastios
 
     implicit none
 
-    integer(kind=8) :: semilla, a, c, modulo, i
+    integer(kind=8) :: semilla, a, c, modulo
     integer :: pasos
     real :: h, x0, p0, m, k, beta_inv, nu
 
@@ -249,6 +252,10 @@ program main
     k=1.0
     beta_inv=1.0
     nu=1.0  
+
+    call euler_maruyama(h,x0,p0,m,k,beta_inv,nu,pasos)
+    call Runge_Kutta_2(pasos, h, x0, p0, m, k, beta_inv, nu)
+    call verlet_exp_est(pasos, h, x0, p0, m, k, beta_inv, nu)
 
     read(*,*)
 
