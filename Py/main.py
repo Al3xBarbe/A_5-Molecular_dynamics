@@ -129,7 +129,7 @@ if False:
     plt.show()
 
 #Plots de las energias (Ki, V y E), equilibrio termico y equiparticion de energia
-if True:
+if False:
 
 # Nombre del archivo
     archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\euler_maruyama.txt"
@@ -233,4 +233,106 @@ if True:
     plt.show()
     plt.close()
 
-    
+#Plots del distribución de x(t) y p(t)
+if True:
+        archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\euler_maruyama.txt"
+
+        t, x, p, Ki, V, E = np.loadtxt(archivo, unpack=True)
+
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+
+        axs[0].hist(x, bins=50, density=True, linewidth=0.5)
+
+        axs[0].set_title("Distribución de x(t)")
+        axs[0].set_xlabel("x")
+        axs[0].set_ylabel("Densidad")
+        axs[0].grid(alpha=0.3)
+
+        axs[1].hist(p, bins=50, density=True, linewidth=0.5)
+
+        axs[1].set_title("Distribución de p(t)")
+        axs[1].set_xlabel("p")
+        axs[1].set_ylabel("Densidad")
+        axs[1].grid(alpha=0.3)
+
+
+        # Ajustar espacios
+        plt.tight_layout()
+
+        # Guardar figura completa
+        plt.savefig(
+        r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\EM_hist_h0.1_nu0.0.png",
+        dpi=300,
+        bbox_inches="tight"
+        )
+
+        plt.show()
+        plt.close()
+
+        archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\runge_kutta_2.txt"
+
+        t, x, p, Ki, V, E = np.loadtxt(archivo, unpack=True)
+
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+
+        axs[0].hist(x, bins=50, density=True, linewidth=0.5)
+
+        axs[0].set_title("Distribución de x(t)")
+        axs[0].set_xlabel("x")
+        axs[0].set_ylabel("Densidad")
+        axs[0].grid(alpha=0.3)
+
+        axs[1].hist(p, bins=50, density=True, linewidth=0.5)
+
+        axs[1].set_title("Distribución de p(t)")
+        axs[1].set_xlabel("p")
+        axs[1].set_ylabel("Densidad")
+        axs[1].grid(alpha=0.3)
+
+
+        # Ajustar espacios
+        plt.tight_layout()
+
+        # Guardar figura completa
+        plt.savefig(
+        r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\RK2_hist_h0.1_nu0.0.png",
+        dpi=300,
+        bbox_inches="tight"
+        )
+
+        plt.show()
+        plt.close()
+
+        archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\verlet_exp_est.txt"
+
+        t, x, p, Ki, V, E = np.loadtxt(archivo, unpack=True)
+
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+
+        axs[0].hist(x, bins=50, density=True, linewidth=0.5)
+
+        axs[0].set_title("Distribución de x(t)")
+        axs[0].set_xlabel("x")
+        axs[0].set_ylabel("Densidad")
+        axs[0].grid(alpha=0.3)
+
+        axs[1].hist(p, bins=50, density=True, linewidth=0.5)
+
+        axs[1].set_title("Distribución de p(t)")
+        axs[1].set_xlabel("p")
+        axs[1].set_ylabel("Densidad")
+        axs[1].grid(alpha=0.3)
+
+
+        # Ajustar espacios
+        plt.tight_layout()
+
+        # Guardar figura completa
+        plt.savefig(
+        r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\VEE_hist_h0.1_nu0.0.png",
+        dpi=300,
+        bbox_inches="tight"
+        )
+
+        plt.show()
+        plt.close()

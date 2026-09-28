@@ -270,15 +270,15 @@ program main
     modulo  = 4294296
 
     ! Parametros de la simulacion
-    pasos = 100000
-    h=0.01
+    pasos = 10000
+    h=0.1
 
     x0=5.0
     p0=0.0
     m=1.0
     k=1.0
     beta_inv=1.0
-    nu=0.01 
+    nu=0.00
 
     call euler_maruyama(pasos, h,x0,p0,m,k,beta_inv,nu)
     call Runge_Kutta_2(pasos, h, x0, p0, m, k, beta_inv, nu)
