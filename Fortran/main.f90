@@ -88,6 +88,7 @@ module algoritmos_estocastios
         integer(kind=8) :: aux
         integer :: i
 
+        ! porque hay que fijar la semilla, a, c y modulo para que el generador de numeros aleatorios funcione correctamente
         ! Parametros del generador
         semilla = 1256789
         a       = 164525
@@ -151,6 +152,7 @@ module algoritmos_estocastios
             fx1 = (p+z_det*n1)/m
             fg1 = -k*x - nu*(p+z_det*n1)
 
+            !Aqui en fx2 deberia ser (p + h*fg1)/m ???
             fx2 = (p + h*fg1)/2
             fg2 = -k*(x + h*fx1) - nu*(p + h*fg1)
 
@@ -162,6 +164,7 @@ module algoritmos_estocastios
             fx1 = (p+z_det*n2)/m
             fg1 = -k*x - nu*(p+z_det*n2)
 
+            !Aqui en fx2 deberia ser (p + h*fg1)/m ???
             fx2 = (p + h*fg1)/2
             fg2 = -k*(x + h*fx1) - nu*(p + h*fg1)
 
@@ -206,6 +209,7 @@ module algoritmos_estocastios
             semilla = aux
 
 
+            !estas formulas de donde salen? no entiendo muy bien de donde salen, no estan en la presentacion
             aux2=x
             x = x + verlet_b*h*p + (-verlet_b*h*h*x)/(2*m) + verlet_b*h*z_det*n1/(2*m)
             p = verlet_a*p - h*(verlet_a*k*aux2 + k*x)/(2*m) + verlet_b*z_det*n1/(2*m)
@@ -236,6 +240,7 @@ program main
     integer :: pasos
     real :: h, x0, p0, m, k, beta_inv, nu
 
+    ! creo que no hace falta poner los parametros del generador de numeros aleatorios en el main, porque ya estan puestos en cada subrutina??
     ! Parametros del generador
     semilla = 1256789
     a       = 164525
