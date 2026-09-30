@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 import os
 
 # Plots de generador de numeros aleatoios
-if False:
+if True:
 
     # Leer los datos
-    datos = np.loadtxt(r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\normal.txt")
+    datos = np.loadtxt(r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\normal_f90")
 
     g1 = datos[:, 0]
     g2 = datos[:, 1]
@@ -21,9 +21,9 @@ if False:
 
     plt.xlabel("Valor")
     plt.ylabel("Densidad")
-    plt.title("Distribución de g1")
+    plt.title("Distribución de g1 10k")
 
-    plt.savefig(r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots/g1.png", dpi=300)
+    plt.savefig(r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots/g1_10k.png", dpi=300)
     plt.show()
     plt.close()
 
@@ -33,18 +33,18 @@ if False:
 
     plt.xlabel("Valor")
     plt.ylabel("Densidad")
-    plt.title("Distribución de g2")
+    plt.title("Distribución de g2 10k")
 
-    plt.savefig(r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots/g2.png", dpi=300)
+    plt.savefig(r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots/g2_10k.png", dpi=300)
     plt.show()
     plt.close()
 
     plt.scatter(g1, g2, s=0.1)
     plt.xlabel("g1")
     plt.ylabel("g2")
-    plt.title("g2 en función de g1")
+    plt.title("g2 en función de g1 10k")
     plt.grid()
-    plt.savefig(r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots/g2_vs_g1.png", dpi=300)
+    plt.savefig(r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots/g2_vs_g1_10k.png", dpi=300)
     plt.show()
     plt.close()
 
@@ -234,7 +234,7 @@ if False:
     plt.close()
 
 #Plots del distribución de x(t) y p(t)
-if True:
+if False:
         archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\euler_maruyama.txt"
 
         t, x, p, Ki, V, E = np.loadtxt(archivo, unpack=True)
@@ -334,5 +334,29 @@ if True:
         bbox_inches="tight"
         )
 
+        plt.show()
+        plt.close()
+
+#Plot correlación numeros aleatorios
+if False:
+        # Leer el archivo
+        datos = np.loadtxt(r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\randcongr")
+
+        # Separar las columnas
+        x = datos[:, 0]
+        y = datos[:, 1]
+
+        # Representar y en función de x
+        plt.scatter(x, y, color="black", s=0.05)
+        plt.xlabel("x1")
+        plt.ylabel("x2")
+        plt.title("Generador_congr 100K")
+        plt.grid(True)
+
+        plt.savefig(
+                r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\rand_congr_100k.png",
+                dpi=300,
+                bbox_inches="tight"
+                )
         plt.show()
         plt.close()

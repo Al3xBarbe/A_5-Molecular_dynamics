@@ -43,7 +43,7 @@ module generador_normal
     end subroutine generar_normal
 
 
-    subroutine generar_normal_txt(pasos, semilla, a, c, m, nombre_archivo)
+    subroutine generar_normal_txt_congr(pasos, semilla, a, c, m, nombre_archivo)
 
         implicit none
 
@@ -68,7 +68,100 @@ module generador_normal
         end do
         close(2)
 
-    end subroutine generar_normal_txt
+    end subroutine generar_normal_txt_congr
+
+    subroutine estudio_rand_f90(iteraciones, nombre_archivo)
+        character(len=*), intent(in) :: nombre_archivo
+        integer, intent(in) :: iteraciones
+        real :: x,y
+        integer :: i
+
+        call random_number(x)
+
+        open(unit=10, file=nombre_archivo, status="replace")
+
+         do i=1, iteraciones    
+            call random_number(y)
+            write(10,*) x, y
+
+            x=y
+        
+         end do
+    
+    end subroutine estudio_rand_f90
+
+    subroutine generar_normal_txt_f90(pasos, nombre_archivo)
+
+        implicit none
+
+        integer, intent(in) :: pasos
+        character(len=*), intent(in) :: nombre_archivo
+        integer :: i
+        real :: q1, q2
+
+        open(unit=13, file=nombre_archivo, status="replace")
+        do i = 1, pasos
+
+            call generar_normal_f90(q1,q2)
+
+            write(13,*) q1, q2
+        end do
+        close(13)
+    
+    end subroutine generar_normal_txt_f90
+
+    subroutine generar_normal_f90(q1,q2)
+
+        implicit none
+        
+        real, intent(out) :: q1,q2
+        real :: pi, x, y
+
+        pi = 4.0 * atan(1.0)
+
+        ! Normalizacion
+        call random_number (x)
+        call random_number (y)
+
+        if (x==0) x=1
+        if (y==0) y=1
+
+        ! Box-Muller
+        q1 = - sqrt(-2.0 * log(x)) * cos(2.0 * pi * y)
+
+        q2 = - sqrt(-2.0 * log(x)) * sin(2.0 * pi * y)
+
+    end subroutine generar_normal_f90
+
+    subroutine estudio_rand_congr(s, a, c, m, iteraciones, nombre_archivo)
+
+        implicit none
+
+        integer(kind=8), intent(in) :: s, a, c, m
+        integer, intent(in) :: iteraciones
+        character(len=*), intent(in) :: nombre_archivo
+        integer (kind=8) :: I1
+        real :: x, y
+        integer :: i
+
+
+        open(unit=11, file=nombre_archivo, status="replace")
+
+
+        I1 = mod(a * s + c, m)
+        x=real(I1)/real(m)
+
+        do i=1, iteraciones 
+            I1=mod(a * I1 + c,m)
+            y=real(I1)/real(m)
+
+            write(11,*) x,y
+
+            x=y
+            
+        end do
+        
+    end subroutine estudio_rand_congr
 
 end module generador_normal
 
@@ -83,16 +176,8 @@ module algoritmos_estocastios
         implicit none
         integer, intent(in) :: pasos
         real, intent(in) :: h, xo, po, m, k, beta_inv, nu
-        integer(kind=8) :: semilla, a, c, modulo
-        real :: x, p, n1, n2, aux2, Ki, V, E
-        integer(kind=8) :: aux
+        real :: x, p, n1, n2, aux, Ki, V, E
         integer :: i
-
-        ! Parametros del generador
-        semilla = 1256789
-        a       = 164525
-        c       = 1004223
-        modulo  = 4294296
 
         x = xo
         p = po
@@ -104,22 +189,21 @@ module algoritmos_estocastios
         write(3,*) 0.0, x, p, Ki, V, E
         do i = 1, pasos/2
 
-            call generar_normal(semilla, a, c, modulo, n1, n2, aux)
-            semilla = aux
-
+            call generar_normal_f90(n1, n2)
+            
             ! Actualizacion de las variables usando Euler-Maruyama
-            aux2 = x
+            aux = x
             x = x + (p/m)*h 
-            p = p - k*aux2*h - nu*p*h + sqrt(2.0*nu*m*beta_inv*h)*n1
+            p = p - k*aux*h - nu*p*h + sqrt(2.0*nu*m*beta_inv*h)*n1
 
             Ki=0.5*p*p/m
             V=0.5*k*x*x
             E=Ki+V
             write(3,*) (2*i-1)*h,x, p, Ki, V, E
 
-            aux2 = x
+            aux = x
             x = x + (p/m)*h 
-            p = p - k*aux2*h - nu*p*h + sqrt(2.0*nu*m*beta_inv*h)*n2
+            p = p - k*aux*h - nu*p*h + sqrt(2.0*nu*m*beta_inv*h)*n2
 
             Ki=0.5*p*p/m
             V=0.5*k*x*x
@@ -135,16 +219,8 @@ module algoritmos_estocastios
         implicit none
         integer, intent(in) :: pasos
         real, intent(in) :: h, xo, po, m, k, beta_inv, nu
-        integer(kind=8) :: semilla, a, c, modulo
         real :: x, p, n1, n2, fx1, fx2, fg1, fg2, z_det, Ki, V, E
-        integer(kind=8) :: aux
         integer :: i
-
-        ! Parametros del generador
-        semilla = 1256789
-        a       = 164525
-        c       = 1004223
-        modulo  = 4294296
 
         x = xo
         p = po
@@ -157,8 +233,7 @@ module algoritmos_estocastios
         z_det=sqrt(2.0*nu*m*beta_inv*h)
         do i = 1, pasos/2
 
-            call generar_normal(semilla, a, c, modulo, n1, n2, aux)
-            semilla = aux
+            call generar_normal_f90(n1, n2)
 
             fx1 = (p+z_det*n1)/m
             fg1 = -k*x - nu*(p+z_det*n1)
@@ -198,16 +273,8 @@ module algoritmos_estocastios
         implicit none
         integer, intent(in) :: pasos
         real, intent(in) :: h, xo, po, m, k, beta_inv, nu
-        integer(kind=8) :: semilla, a, c, modulo
-        real :: x, p, n1, n2, z_det, verlet_a, verlet_b, aux2, Ki, V, E
-        integer(kind=8) :: aux
+        real :: x, p, n1, n2, z_det, verlet_a, verlet_b, aux, Ki, V, E
         integer :: i
-
-        ! Parametros del generador
-        semilla = 1256789
-        a       = 164525
-        c       = 1004223
-        modulo  = 4294296
 
         x = xo
         p = po
@@ -223,22 +290,20 @@ module algoritmos_estocastios
 
         do i = 1, pasos/2
 
-            call generar_normal(semilla, a, c, modulo, n1, n2, aux)
-            semilla = aux
+            call generar_normal_f90(n1, n2)
 
-
-            aux2=x
+            aux=x
             x = x + verlet_b*h*p + (-verlet_b*h*h*x)/(2*m) + verlet_b*h*z_det*n1/(2*m)
-            p = verlet_a*p - h*(verlet_a*k*aux2 + k*x)/(2*m) + verlet_b*z_det*n1/(2*m)
+            p = verlet_a*p - h*(verlet_a*k*aux + k*x)/(2*m) + verlet_b*z_det*n1/(2*m)
 
             Ki=0.5*p*p/m
             V=0.5*k*x*x
             E=Ki+V
             write(5,*) (2*i-1)*h, x, p, Ki, V, E
 
-            aux2=x
+            aux=x
             x = x + verlet_b*h*p + (-verlet_b*h*h*x)/(2*m) + verlet_b*h*z_det*n2/(2*m)
-            p = verlet_a*p - h*(verlet_a*k*aux2 + k*x)/(2*m) + verlet_b*z_det*n2/(2*m)
+            p = verlet_a*p - h*(verlet_a*k*aux + k*x)/(2*m) + verlet_b*z_det*n2/(2*m)
 
             Ki=0.5*p*p/m
             V=0.5*k*x*x
@@ -260,7 +325,7 @@ program main
     implicit none
 
     integer(kind=8) :: semilla, a, c, modulo
-    integer :: pasos
+    integer :: tiempo, pasos
     real :: h, x0, p0, m, k, beta_inv, nu
 
     ! Parametros del generador
@@ -270,21 +335,22 @@ program main
     modulo  = 4294296
 
     ! Parametros de la simulacion
-    pasos = 10000
-    h=0.1
+    tiempo=10000
+    h=0.0001
+    pasos=int(tiempo/h)
 
     x0=5.0
     p0=0.0
     m=1.0
     k=1.0
     beta_inv=1.0
-    nu=0.00
+    nu=0.0
 
     call euler_maruyama(pasos, h,x0,p0,m,k,beta_inv,nu)
     call Runge_Kutta_2(pasos, h, x0, p0, m, k, beta_inv, nu)
     call verlet_exp_est(pasos, h, x0, p0, m, k, beta_inv, nu)
 
+
+    print *, "Pulsa ENTER para salir..."
     read(*,*)
-
-
 end program main
