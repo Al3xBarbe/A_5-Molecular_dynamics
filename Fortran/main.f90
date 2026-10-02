@@ -1,5 +1,8 @@
 !========================== generar_normal(s, a0, c0, m0, no1, no2, In2) ===========================================
-!========================== generar_normal_txt(pasos, semilla, a, c, m, nombre_archivo) ===========================================
+!========================== generar_normal_txt_congr(pasos, semilla, a, c, m, nombre_archivo) ===========================================
+!========================== estudio_rand_f90(iteraciones, nombre_archivo) ===========================================
+!========================== generar_normal_txt_f90(pasos, nombre_archivo) ===========================================
+!========================== generar_normal_f90(q1,q2) ===========================================
 module generador_normal
     contains 
     subroutine generar_normal(s, a0, c0, m0, no1, no2, In2)
@@ -165,7 +168,7 @@ module generador_normal
 
 end module generador_normal
 
-!========================== euler_maruyama(pasos,xo,po,m,k,beta_inv,nu) ===========================================
+!========================== euler_maruyama(pasos,h,xo,po,m,k,beta_inv,nu) ===========================================
 !========================== Runge_Kutta_2 (pasos,h,xo,po,m,k,beta_inv,nu) ===========================================
 !========================== verlet_exp_est(pasos,h,xo,po,m,k,beta_inv,nu) ===========================================
 module algoritmos_estocastios
@@ -225,7 +228,7 @@ module algoritmos_estocastios
         x = xo
         p = po
 
-        open(unit=4, file="runge_kutta_2.txt", status="replace")
+        open(unit=1000, file="runge_kutta_2.txt", status="replace")
         Ki=0.5*p*p/m
         V=0.5*k*x*x
         E=Ki+V
@@ -265,7 +268,7 @@ module algoritmos_estocastios
 
         end do
 
-        close(4)
+        close(1000)
 
     end subroutine Runge_Kutta_2
 
@@ -315,6 +318,158 @@ module algoritmos_estocastios
 
     end subroutine verlet_exp_est
 
+    subroutine termalizacion_EM(pasos, h, xo, po, m, k, beta_inv, nu)
+        implicit none
+        integer, intent(in) :: pasos
+        real, intent(in) :: h, xo, po, m, k, beta_inv, nu
+        real :: x, p, n1, n2, aux, Ki, V, Ki_m, V_m
+        integer :: i
+
+        x = xo
+        p = po
+
+        open(unit=15, file="termalizacion_EM.txt", status="replace")
+        Ki=0.5*p*p/m
+        V=0.5*k*x*x
+        Ki_m = Ki
+        V_m = V
+        write(15,*) 0.0, x, p, Ki_m, V_m
+        do i = 1, pasos/2
+            call generar_normal_f90(n1,n2)
+            aux = x
+            x = x + (p/m)*h 
+            p = p - k*aux*h - nu*p*h + sqrt(2.0*nu*m*beta_inv*h)*n1
+
+            Ki=0.5*p*p/m
+            V=0.5*k*x*x
+            Ki_m = Ki_m + Ki
+            V_m=V_m + V
+
+            write(15,*) (2*i-1)*h,x, p, Ki_m/(2*i), V_m/(2*i)
+
+            aux = x
+            x = x + (p/m)*h 
+            p = p - k*aux*h - nu*p*h + sqrt(2.0*nu*m*beta_inv*h)*n2
+
+            Ki=0.5*p*p/m
+            V=0.5*k*x*x
+            Ki_m = Ki_m + Ki
+            V_m = V_m + V
+
+            write(15,*) (2*i)*h,x, p, Ki_m/((2*i)+1), V_m/((2*i)+1)
+        end do
+        close (15)
+
+
+        
+    end subroutine termalizacion_EM
+
+    subroutine termalizacion_RK(pasos, h, xo, po, m, k, beta_inv, nu)
+        implicit none
+        integer, intent(in) :: pasos
+        real, intent(in) :: h, xo, po, m, k, beta_inv, nu
+        real :: x, p, n1, n2, fx1, fx2, fg1, fg2, z_det, Ki, V, Ki_m, V_m
+        integer :: i
+
+        x = xo
+        p = po
+
+        open(unit=16, file="term_RK.txt", status="replace")
+        Ki=0.5*p*p/m
+        V=0.5*k*x*x
+        Ki_m=Ki
+        V_m=V
+        write(16,*) 0.0,x, p, Ki_m, V_m
+        z_det=sqrt(2.0*nu*m*beta_inv*h)
+        do i = 1, pasos/2
+
+            call generar_normal_f90(n1, n2)
+
+            fx1 = (p+z_det*n1)/m
+            fg1 = -k*x - nu*(p+z_det*n1)
+
+            fx2 = (p + h*fg1)/2
+            fg2 = -k*(x + h*fx1) - nu*(p + h*fg1)
+
+            x = x + 0.5*h*(fx1 + fx2)
+            p = p + 0.5*h*(fg1 + fg2) + z_det*n1
+
+            Ki=0.5*p*p/m
+            V=0.5*k*x*x
+            Ki_m = Ki_m + Ki
+            V_m = V_m + V
+            write(16,*) (2*i-1)*h, x, p, Ki_m/(2*i), V_m/(2*i)
+
+            fx1 = (p+z_det*n2)/m
+            fg1 = -k*x - nu*(p+z_det*n2)
+
+            fx2 = (p + h*fg1)/2
+            fg2 = -k*(x + h*fx1) - nu*(p + h*fg1)
+
+            x = x + 0.5*h*(fx1 + fx2)
+            p = p + 0.5*h*(fg1 + fg2) + z_det*n2
+
+            Ki=0.5*p*p/m
+            V=0.5*k*x*x
+            Ki_m=Ki_m + Ki
+            V_m = V_m + V
+            write(16,*) (2*i)*h, x, p, Ki_m/((2*i)+1), V_m/((2*i)+1)
+
+        end do
+
+        close(16)
+    
+    end subroutine termalizacion_RK
+
+    subroutine termalizacion_VE(pasos, h, xo, po, m, k, beta_inv, nu)
+        implicit none
+        integer, intent(in) :: pasos
+        real, intent(in) :: h, xo, po, m, k, beta_inv, nu
+        real :: x, p, n1, n2, z_det, verlet_a, verlet_b, aux, Ki, V, Ki_m, V_m
+        integer :: i
+
+        x = xo
+        p = po
+
+        open(unit=17, file="term_VE.txt", status="replace")
+        Ki=0.5*p*p/m
+        V=0.5*k*x*x
+        Ki_m=Ki
+        V_m=V
+        write(17,*) 0.0,x, p, Ki_m, V_m
+        z_det=sqrt(2.0*nu*m*beta_inv*h)
+        verlet_a = (1-(nu*h)/2)/(1+(nu*h)/2)
+        verlet_b = 1/(1+(nu*h)/2)
+
+        do i = 1, pasos/2
+
+            call generar_normal_f90(n1, n2)
+
+            aux = x
+            x = x + verlet_b*h*p/m - verlet_b*h*h*k*x/(2.0*m) + verlet_b*h*z_det*n1/(2.0*m)
+            p = verlet_a*p - 0.5*h*(verlet_a*k*aux + k*x) + verlet_b*z_det*n1
+
+            Ki=0.5*p*p/m
+            V=0.5*k*x*x
+            Ki_m=Ki_m + Ki
+            V_m = V_m + V
+            write(17,*) (2*i-1)*h, x, p, Ki_m/(2*i), V_m/(2*i)
+
+            aux = x
+            x = x + verlet_b*h*p/m - verlet_b*h*h*k*x/(2.0*m) + verlet_b*h*z_det*n2/(2.0*m)
+            p = verlet_a*p - 0.5*h*(verlet_a*k*aux + k*x) + verlet_b*z_det*n2
+
+            Ki=0.5*p*p/m
+            V=0.5*k*x*x
+            Ki_m=Ki_m + Ki
+            V_m = V_m + V
+            write(17,*) (2*i)*h, x, p, Ki_m/((2*i)+1), V_m/((2*i)+1)
+
+        end do
+        close(17)
+
+    end subroutine termalizacion_VE
+
 end module algoritmos_estocastios
 
 program main
@@ -326,7 +481,7 @@ program main
 
     integer(kind=8) :: semilla, a, c, modulo
     integer :: tiempo, pasos
-    real :: h, x0, p0, m, k, beta_inv, nu
+    real :: h, x0, p0, m, k, beta_inv, eta
 
     ! Parametros del generador
     semilla = 1256789
@@ -335,20 +490,23 @@ program main
     modulo  = 4294296
 
     ! Parametros de la simulacion
-    tiempo=10000
+    tiempo=5000
     h=0.0001
     pasos=int(tiempo/h)
 
-    x0=5.0
+    x0=3.0
     p0=0.0
     m=1.0
     k=1.0
     beta_inv=1.0
-    nu=0.0
+    eta=10
+    !Falta runearlo
 
-    call euler_maruyama(pasos, h,x0,p0,m,k,beta_inv,nu)
-    call Runge_Kutta_2(pasos, h, x0, p0, m, k, beta_inv, nu)
-    call verlet_exp_est(pasos, h, x0, p0, m, k, beta_inv, nu)
+    call termalizacion_EM(pasos, h, x0, p0, m, k, beta_inv, eta)
+    call termalizacion_RK(pasos, h, x0, p0, m, k, beta_inv, eta)
+    call termalizacion_VE(pasos, h, x0, p0, m, k, beta_inv, eta)
+
+
 
 
     print *, "Pulsa ENTER para salir..."

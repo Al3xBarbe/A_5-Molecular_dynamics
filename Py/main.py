@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import os
 
 # Plots de generador de numeros aleatoios
-if True:
+if False:
 
     # Leer los datos
     datos = np.loadtxt(r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\normal_f90")
@@ -337,6 +337,181 @@ if False:
         plt.show()
         plt.close()
 
+#Plot termalización de la Energia
+if False:
+
+        eta = 10
+        h = 0.0001
+
+        archivo_EM = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\termalizacion_EM.txt"
+
+        archivo_RK = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\term_RK.txt"
+
+        archivo_VE = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\term_VE.txt"
+
+
+        t_EM, x_EM, p_EM, Ki_EM, V_EM = np.loadtxt(
+        archivo_EM, unpack=True
+        )
+
+        t_RK, x_RK, p_RK, Ki_RK, V_RK = np.loadtxt(
+        archivo_RK, unpack=True
+        )
+
+        t_VE, x_VE, p_VE, Ki_VE, V_VE = np.loadtxt(
+        archivo_VE, unpack=True
+        )
+
+        Ki_final_EM = Ki_EM[-1]
+        Ki_final_RK = Ki_RK[-1]
+        Ki_final_VE = Ki_VE[-1]
+
+        V_final_EM = V_EM[-1]
+        V_final_RK = V_RK[-1]
+        V_final_VE = V_VE[-1]
+
+        plt.figure(figsize=(8, 5))
+
+        plt.plot(
+        t_EM, Ki_EM,
+        linewidth=0.6,
+        label=r"$\langle K\rangle$"
+        )
+
+        plt.plot(
+        t_EM, V_EM,
+        linewidth=0.6,
+        label=r"$\langle V\rangle$"
+        )
+
+        plt.axhline(
+        0.5,
+        linestyle="--",
+        linewidth=0.8,
+        label=r"$k_BT/2=0.5$"
+        )
+
+        plt.title("Euler-Maruyama")
+        plt.xlabel("Tiempo")
+        plt.ylabel("Energía media")
+
+        plt.legend(
+        title=fr"$\eta={eta}$, $h={h}$" + "\n"
+                fr"$\langle V\rangle_f={V_final_EM:.4f}$" + "\n"
+                fr"$\langle Ki\rangle_f={Ki_final_EM:.4f}$"
+        )
+
+        plt.grid(alpha=0.3)
+
+        plt.tight_layout()
+
+        plt.savefig(
+                fr"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\termalizacion_EM_h{h}_eta{eta}.png",
+                dpi=300,
+                bbox_inches="tight"
+                )
+
+        plt.show()
+        plt.close()
+
+
+        # ============================================================
+        # RUNGE-KUTTA 2
+        # ============================================================
+
+        plt.figure(figsize=(8, 5))
+
+        plt.plot(
+        t_RK, Ki_RK,
+        linewidth=0.6,
+        label=r"$\langle K\rangle$"
+        )
+
+        plt.plot(
+        t_RK, V_RK,
+        linewidth=0.6,
+        label=r"$\langle V\rangle$"
+        )
+
+        plt.axhline(
+        0.5,
+        linestyle="--",
+        linewidth=0.8,
+        label=r"$k_BT/2=0.5$"
+        )
+
+        plt.title("Runge-Kutta 2")
+        plt.xlabel("Tiempo")
+        plt.ylabel("Energía media")
+
+        plt.legend(
+        title=fr"$\eta={eta}$, $h={h}$" + "\n"
+                fr"$\langle V\rangle_f={V_final_RK:.4f}$" + "\n"
+                fr"$\langle Ki\rangle_f={Ki_final_RK:.4f}$"
+        )
+
+        plt.grid(alpha=0.3)
+
+        plt.tight_layout()
+
+        plt.savefig(
+                fr"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\termalizacion_RK_h{h}_eta{eta}.png",
+                dpi=300,
+                bbox_inches="tight"
+)
+
+        plt.show()
+        plt.close()
+
+
+        # ============================================================
+        # VERLET
+        # ============================================================
+
+        plt.figure(figsize=(8, 5))
+
+        plt.plot(
+        t_VE, Ki_VE,
+        linewidth=0.6,
+        label=r"$\langle K\rangle$"
+        )
+
+        plt.plot(
+        t_VE, V_VE,
+        linewidth=0.6,
+        label=r"$\langle V\rangle$"
+        )
+
+        plt.axhline(
+        0.5,
+        linestyle="--",
+        linewidth=0.8,
+        label=r"$k_BT/2=0.5$"
+        )
+
+        plt.title("Verlet")
+        plt.xlabel("Tiempo")
+        plt.ylabel("Energía media")
+
+        plt.legend(
+        title=fr"$\eta={eta}$, $h={h}$" + "\n"
+                fr"$\langle V\rangle_f={V_final_VE:.4f}$" + "\n"
+                fr"$\langle Ki\rangle_f={Ki_final_VE:.4f}$"
+        )
+
+        plt.grid(alpha=0.3)
+
+        plt.tight_layout()
+
+        plt.savefig(
+                fr"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\termalizacion_VE_h{h}_eta{eta}.png",
+                dpi=300,
+                bbox_inches="tight"
+                )
+
+        plt.show()
+        plt.close()
+      
 #Plot correlación numeros aleatorios
 if False:
         # Leer el archivo
