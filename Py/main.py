@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 import os
 
 # Plots de generador de numeros aleatoios
@@ -234,7 +235,25 @@ if False:
     plt.close()
 
 #Plots del distribución de x(t) y p(t)
-if False:
+if True:
+
+        h = 0.0001
+        eta = 10
+
+        # ============================================================
+        # GAUSSIANAS TEÓRICAS ESPERADAS
+        # ============================================================
+
+        x_teor = np.linspace(-4, 4, 500)
+        p_teor = np.linspace(-4, 4, 500)
+
+        gauss_x = (1 / np.sqrt(2 * np.pi)) * np.exp(-x_teor**2 / 2)
+        gauss_p = (1 / np.sqrt(2 * np.pi)) * np.exp(-p_teor**2 / 2)
+
+        # ============================================================
+        # EULER-MARUYAMA
+        # ============================================================
+
         archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\euler_maruyama.txt"
 
         t, x, p, Ki, V, E = np.loadtxt(archivo, unpack=True)
@@ -242,26 +261,32 @@ if False:
         fig, axs = plt.subplots(1, 2, figsize=(12, 5))
 
         axs[0].hist(x, bins=50, density=True, linewidth=0.5)
-
+        axs[0].plot(x_teor, gauss_x, "--", linewidth=2,
+                label="Gaussiana teórica")
         axs[0].set_title("Distribución de x(t)")
         axs[0].set_xlabel("x")
         axs[0].set_ylabel("Densidad")
         axs[0].grid(alpha=0.3)
+        axs[0].legend()
 
         axs[1].hist(p, bins=50, density=True, linewidth=0.5)
-
+        axs[1].plot(p_teor, gauss_p, "--", linewidth=2,
+                label="Gaussiana teórica")
         axs[1].set_title("Distribución de p(t)")
         axs[1].set_xlabel("p")
         axs[1].set_ylabel("Densidad")
         axs[1].grid(alpha=0.3)
+        axs[1].legend()
 
+        fig.suptitle(
+        rf"Euler-Maruyama ($h={h}$, $\eta={eta}$)",
+        fontsize=15
+        )
 
-        # Ajustar espacios
         plt.tight_layout()
 
-        # Guardar figura completa
         plt.savefig(
-        r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\EM_hist_h0.1_nu0.0.png",
+        rf"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\EM_distr_h{h}_eta{eta}.png",
         dpi=300,
         bbox_inches="tight"
         )
@@ -269,74 +294,104 @@ if False:
         plt.show()
         plt.close()
 
-        archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\runge_kutta_2.txt"
 
-        t, x, p, Ki, V, E = np.loadtxt(archivo, unpack=True)
+        # ============================================================
+        # RUNGE-KUTTA
+        # ============================================================
+
+        archivo2 = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\runge_kutta_2.txt"
+
+        print("Leyendo:", archivo2)
+
+        t, x, p, Ki, V, E = np.loadtxt(
+        archivo2,
+        unpack=True
+        )
 
         fig, axs = plt.subplots(1, 2, figsize=(12, 5))
 
         axs[0].hist(x, bins=50, density=True, linewidth=0.5)
-
+        axs[0].plot(x_teor, gauss_x, "--", linewidth=2,
+                label="Gaussiana teórica")
         axs[0].set_title("Distribución de x(t)")
         axs[0].set_xlabel("x")
         axs[0].set_ylabel("Densidad")
         axs[0].grid(alpha=0.3)
+        axs[0].legend()
 
         axs[1].hist(p, bins=50, density=True, linewidth=0.5)
-
+        axs[1].plot(p_teor, gauss_p, "--", linewidth=2,
+                label="Gaussiana teórica")
         axs[1].set_title("Distribución de p(t)")
         axs[1].set_xlabel("p")
         axs[1].set_ylabel("Densidad")
         axs[1].grid(alpha=0.3)
+        axs[1].legend()
 
+        fig.suptitle(
+        rf"Runge-Kutta 2 ($h={h}$, $\eta={eta}$)",
+        fontsize=15
+        )
 
-        # Ajustar espacios
         plt.tight_layout()
 
-        # Guardar figura completa
         plt.savefig(
-        r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\RK2_hist_h0.1_nu0.0.png",
+        rf"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\RK2_distr_h{h}_eta{eta}.png",
         dpi=300,
         bbox_inches="tight"
         )
 
         plt.show()
         plt.close()
+
+
+        # ============================================================
+        # VELOCITY VERLET
+        # ============================================================
 
         archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\verlet_exp_est.txt"
 
-        t, x, p, Ki, V, E = np.loadtxt(archivo, unpack=True)
+        t, x, p, Ki, V, E = np.loadtxt(
+        archivo,
+        unpack=True
+        )
 
         fig, axs = plt.subplots(1, 2, figsize=(12, 5))
 
         axs[0].hist(x, bins=50, density=True, linewidth=0.5)
-
+        axs[0].plot(x_teor, gauss_x, "--", linewidth=2,
+                label="Gaussiana teórica")
         axs[0].set_title("Distribución de x(t)")
         axs[0].set_xlabel("x")
         axs[0].set_ylabel("Densidad")
         axs[0].grid(alpha=0.3)
+        axs[0].legend()
 
         axs[1].hist(p, bins=50, density=True, linewidth=0.5)
-
+        axs[1].plot(p_teor, gauss_p, "--", linewidth=2,
+                label="Gaussiana teórica")
         axs[1].set_title("Distribución de p(t)")
         axs[1].set_xlabel("p")
         axs[1].set_ylabel("Densidad")
         axs[1].grid(alpha=0.3)
+        axs[1].legend()
 
+        fig.suptitle(
+        rf"Verlet Explicito ($h={h}$, $\eta={eta}$)",
+        fontsize=15
+        )
 
-        # Ajustar espacios
         plt.tight_layout()
 
-        # Guardar figura completa
         plt.savefig(
-        r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\VEE_hist_h0.1_nu0.0.png",
+        rf"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\VEE_distr_h{h}_eta{eta}.png",
         dpi=300,
         bbox_inches="tight"
         )
 
         plt.show()
         plt.close()
-
+        
 #Plot termalización de la Energia
 if False:
 
@@ -458,7 +513,7 @@ if False:
                 fr"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\termalizacion_RK_h{h}_eta{eta}.png",
                 dpi=300,
                 bbox_inches="tight"
-)
+        )
 
         plt.show()
         plt.close()
@@ -511,7 +566,7 @@ if False:
 
         plt.show()
         plt.close()
-      
+
 #Plot correlación numeros aleatorios
 if False:
         # Leer el archivo

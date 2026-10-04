@@ -228,11 +228,11 @@ module algoritmos_estocastios
         x = xo
         p = po
 
-        open(unit=1000, file="runge_kutta_2.txt", status="replace")
+        open(unit=1001, file="runge_kutta_2.txt", status="replace")
         Ki=0.5*p*p/m
         V=0.5*k*x*x
         E=Ki+V
-        write(4,*) 0.0,x, p, Ki, V, E
+        write(1001,*) 0.0,x, p, Ki, V, E
         z_det=sqrt(2.0*nu*m*beta_inv*h)
         do i = 1, pasos/2
 
@@ -241,7 +241,7 @@ module algoritmos_estocastios
             fx1 = (p+z_det*n1)/m
             fg1 = -k*x - nu*(p+z_det*n1)
 
-            fx2 = (p + h*fg1)/2
+            fx2 = (p + h*fg1)/m
             fg2 = -k*(x + h*fx1) - nu*(p + h*fg1)
 
             x = x + 0.5*h*(fx1 + fx2)
@@ -250,12 +250,12 @@ module algoritmos_estocastios
             Ki=0.5*p*p/m
             V=0.5*k*x*x
             E=Ki+V
-            write(4,*) (2*i-1)*h, x, p, Ki, V, E
+            write(1001,*) (2*i-1)*h, x, p, Ki, V, E
 
             fx1 = (p+z_det*n2)/m
             fg1 = -k*x - nu*(p+z_det*n2)
 
-            fx2 = (p + h*fg1)/2
+            fx2 = (p + h*fg1)/m
             fg2 = -k*(x + h*fx1) - nu*(p + h*fg1)
 
             x = x + 0.5*h*(fx1 + fx2)
@@ -264,11 +264,11 @@ module algoritmos_estocastios
             Ki=0.5*p*p/m
             V=0.5*k*x*x
             E=Ki+V
-            write(4,*) (2*i)*h, x, p, Ki, V, E
+            write(1001,*) (2*i)*h, x, p, Ki, V, E
 
         end do
 
-        close(1000)
+        close(1001)
 
     end subroutine Runge_Kutta_2
 
@@ -295,18 +295,18 @@ module algoritmos_estocastios
 
             call generar_normal_f90(n1, n2)
 
-            aux=x
-            x = x + verlet_b*h*p + (-verlet_b*h*h*x)/(2*m) + verlet_b*h*z_det*n1/(2*m)
-            p = verlet_a*p - h*(verlet_a*k*aux + k*x)/(2*m) + verlet_b*z_det*n1/(2*m)
+            aux = x
+            x = x + verlet_b*h*p/m - verlet_b*h*h*k*x/(2.0*m) + verlet_b*h*z_det*n1/(2.0*m)
+            p = verlet_a*p - 0.5*h*(verlet_a*k*aux + k*x) + verlet_b*z_det*n1
 
             Ki=0.5*p*p/m
             V=0.5*k*x*x
             E=Ki+V
             write(5,*) (2*i-1)*h, x, p, Ki, V, E
 
-            aux=x
-            x = x + verlet_b*h*p + (-verlet_b*h*h*x)/(2*m) + verlet_b*h*z_det*n2/(2*m)
-            p = verlet_a*p - h*(verlet_a*k*aux + k*x)/(2*m) + verlet_b*z_det*n2/(2*m)
+            aux = x
+            x = x + verlet_b*h*p/m - verlet_b*h*h*k*x/(2.0*m) + verlet_b*h*z_det*n2/(2.0*m)
+            p = verlet_a*p - 0.5*h*(verlet_a*k*aux + k*x) + verlet_b*z_det*n2
 
             Ki=0.5*p*p/m
             V=0.5*k*x*x
@@ -388,7 +388,7 @@ module algoritmos_estocastios
             fx1 = (p+z_det*n1)/m
             fg1 = -k*x - nu*(p+z_det*n1)
 
-            fx2 = (p + h*fg1)/2
+            fx2 = (p + h*fg1)/m
             fg2 = -k*(x + h*fx1) - nu*(p + h*fg1)
 
             x = x + 0.5*h*(fx1 + fx2)
@@ -403,7 +403,7 @@ module algoritmos_estocastios
             fx1 = (p+z_det*n2)/m
             fg1 = -k*x - nu*(p+z_det*n2)
 
-            fx2 = (p + h*fg1)/2
+            fx2 = (p + h*fg1)/m
             fg2 = -k*(x + h*fx1) - nu*(p + h*fg1)
 
             x = x + 0.5*h*(fx1 + fx2)
@@ -479,15 +479,8 @@ program main
 
     implicit none
 
-    integer(kind=8) :: semilla, a, c, modulo
     integer :: tiempo, pasos
     real :: h, x0, p0, m, k, beta_inv, eta
-
-    ! Parametros del generador
-    semilla = 1256789
-    a       = 164525
-    c       = 1004223
-    modulo  = 4294296
 
     ! Parametros de la simulacion
     tiempo=5000
@@ -500,13 +493,10 @@ program main
     k=1.0
     beta_inv=1.0
     eta=10
-    !Falta runearlo
 
-    call termalizacion_EM(pasos, h, x0, p0, m, k, beta_inv, eta)
-    call termalizacion_RK(pasos, h, x0, p0, m, k, beta_inv, eta)
-    call termalizacion_VE(pasos, h, x0, p0, m, k, beta_inv, eta)
-
-
+    call euler_maruyama(pasos,h,x0,p0,m,k,beta_inv,eta)
+    call Runge_Kutta_2(pasos,h,x0,p0,m,k,beta_inv,eta)
+    call verlet_exp_est(pasos,h,x0,p0,m,k,beta_inv,eta)
 
 
     print *, "Pulsa ENTER para salir..."
