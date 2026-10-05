@@ -52,7 +52,7 @@ if False:
 # Plots de las soluciones de los metodos (x(h) y p(h))
 if False:
     # Nombre del archivo
-    archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\euler_maruyama.txt"
+    archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\verlet_doblepozo.txt"
 
     # Cargar los datos
     # columnas: t, x, p
@@ -64,7 +64,7 @@ if False:
     # x(t)
     ax[0].plot(t, x)
     ax[0].set_ylabel("x(t)")
-    ax[0].set_title("Posición y momento")
+    ax[0].set_title("Posición y momento (h0.001, eta1.0)")
     ax[0].grid(True)
 
     # v(t)
@@ -74,59 +74,7 @@ if False:
     ax[1].grid(True)
 
     plt.tight_layout()
-    plt.savefig(r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots/EM_h0.01_nu10.png", dpi=300)
-    plt.show()
-
-    # Nombre del archivo
-    archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\runge_kutta_2.txt"
-
-    # Cargar los datos
-    # columnas: t, x, p
-    t, x, p = np.loadtxt(archivo, unpack=True)
-
-    # Crear las gráficas
-    fig, ax = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
-
-    # x(t)
-    ax[0].plot(t, x)
-    ax[0].set_ylabel("x(t)")
-    ax[0].set_title("Posición y momento")
-    ax[0].grid(True)
-
-    # v(t)
-    ax[1].plot(t, p)
-    ax[1].set_xlabel("t")
-    ax[1].set_ylabel("p(t)")
-    ax[1].grid(True)
-
-    plt.tight_layout()
-    plt.savefig(r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots/RK2_h0.01_nu10.png", dpi=300)
-    plt.show()
-
-    # Nombre del archivo
-    archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\verlet_exp_est.txt"
-
-    # Cargar los datos
-    # columnas: t, x, p
-    t, x, p = np.loadtxt(archivo, unpack=True)
-
-    # Crear las gráficas
-    fig, ax = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
-
-    # x(t)
-    ax[0].plot(t, x)
-    ax[0].set_ylabel("x(t)")
-    ax[0].set_title("Posición y momento")
-    ax[0].grid(True)
-
-    # v(t)
-    ax[1].plot(t, p)
-    ax[1].set_xlabel("t")
-    ax[1].set_ylabel("p(t)")
-    ax[1].grid(True)
-
-    plt.tight_layout()
-    plt.savefig(r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots/VerEst_h0.01_nu10.png", dpi=300)
+    plt.savefig(r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots/VerDP_h0.001_nu1.0.png", dpi=300)
     plt.show()
 
 #Plots de las energias (Ki, V y E), equilibrio termico y equiparticion de energia
@@ -234,8 +182,97 @@ if False:
     plt.show()
     plt.close()
 
-#Plots del distribución de x(t) y p(t)
+#distribuciones de x(t) y p(t) doble pozo
 if True:
+
+    h = 0.001
+    eta = 1.0
+    beta_inv = 0.2
+    m = 1.0
+    sigma =  np.sqrt(beta_inv*m)
+
+    p_teor = np.linspace(-4, 4, 500)
+
+    gauss_p = (1 / (np.sqrt(2 * np.pi)*sigma)) * np.exp(-p_teor**2 / (2*sigma**2))
+
+    # ============================================================
+    # VERLET EXPLÍCITO
+    # ============================================================
+
+    archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\verlet_doblepozo.txt"
+
+    t, x, p, Ki, V, est = np.loadtxt(
+        archivo,
+        unpack=True
+    )
+
+    # ============================================================
+    # FIGURA: DISTRIBUCIONES DE x(t) Y p(t)
+    # ============================================================
+
+    fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+
+    # Distribución de x(t)
+    axs[0].hist(
+        x,
+        bins=50,
+        density=True,
+        linewidth=0.5
+    )
+
+
+    axs[0].set_title("Distribución de x(t)")
+    axs[0].set_xlabel("x")
+    axs[0].set_ylabel("Densidad")
+    axs[0].grid(alpha=0.3)
+    axs[0].legend()
+
+    # Distribución de p(t)
+    axs[1].hist(
+        p,
+        bins=50,
+        density=True,
+        linewidth=0.5
+    )
+
+    axs[1].plot(
+        p_teor,
+        gauss_p,
+        "--",
+        linewidth=2,
+        label="Gaussiana teórica"
+    )
+
+    axs[1].set_title("Distribución de p(t)")
+    axs[1].set_xlabel("p")
+    axs[1].set_ylabel("Densidad")
+    axs[1].grid(alpha=0.3)
+    axs[1].legend()
+
+    # Título general
+    fig.suptitle(
+        rf"Verlet Explícito ($h={h}$, $\eta={eta}$)",
+        fontsize=15
+    )
+
+    plt.tight_layout()
+
+    # ============================================================
+    # GUARDAR FIGURA
+    # ============================================================
+
+    plt.savefig(
+        rf"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\VDP_distr_h{h}_eta{eta}.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.show()
+    plt.close()
+
+
+#Plots del distribución de x(t) y p(t)
+if False:
 
         h = 0.0001
         eta = 10
@@ -395,8 +432,8 @@ if True:
 #Plot termalización de la Energia
 if False:
 
-        eta = 10
-        h = 0.0001
+        eta = 1.0
+        h = 0.001
 
         archivo_EM = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\termalizacion_EM.txt"
 
@@ -563,6 +600,60 @@ if False:
                 dpi=300,
                 bbox_inches="tight"
                 )
+
+        plt.show()
+        plt.close()
+
+#Plot equipartición de la Energia O2
+if False:
+        eta = 1.0
+        h = 0.001
+        archivo_VE = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\verlet_doblepozo.txt"
+        t_VE, x_VE, p_VE, Ki_VE, V_VE = np.loadtxt(
+                archivo_VE, unpack=True
+                )
+        Ki_final_VE = Ki_VE[-1]
+        V_final_VE = V_VE[-1]
+        plt.figure(figsize=(8, 5))
+        
+        plt.plot(
+                t_VE, Ki_VE,
+                linewidth=0.6,
+                label=r"$\langle K\rangle$"
+        )
+        
+        plt.plot(
+                t_VE, V_VE,
+                linewidth=0.6,
+                label=r"$\langle V\rangle$"
+        )
+        
+        plt.axhline(
+                0.5,
+                linestyle="--",
+                linewidth=0.8,
+                label=r"$k_BT/2=0.5$"
+        )
+
+        plt.title("Verlet")
+        plt.xlabel("Tiempo")
+        plt.ylabel("Energía media")
+
+        plt.legend(
+                title=fr"$\eta={eta}$, $h={h}$" + "\n"
+                fr"$\langle V\rangle_f={V_final_VE:.4f}$" + "\n"
+                fr"$\langle Ki\rangle_f={Ki_final_VE:.4f}$"
+        )
+
+        plt.grid(alpha=0.3)
+
+        plt.tight_layout()
+
+        plt.savefig(
+                fr"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\Equip_VDB_h{h}_eta{eta}.png",
+                dpi=300,
+                bbox_inches="tight"
+        )
 
         plt.show()
         plt.close()

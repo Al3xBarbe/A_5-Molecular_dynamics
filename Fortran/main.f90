@@ -175,7 +175,7 @@ module algoritmos_estocastios
     use generador_normal
     contains
 
-    subroutine euler_maruyama(pasos,h,xo,po,m,k,beta_inv,nu)
+    subroutine euler_maruyama_01(pasos,h,xo,po,m,k,beta_inv,nu)
         implicit none
         integer, intent(in) :: pasos
         real, intent(in) :: h, xo, po, m, k, beta_inv, nu
@@ -216,9 +216,9 @@ module algoritmos_estocastios
         end do
         close(3)
 
-    end subroutine euler_maruyama
+    end subroutine euler_maruyama_01
 
-    subroutine Runge_Kutta_2 (pasos, h, xo, po, m, k, beta_inv, nu)
+    subroutine Runge_Kutta_2_01 (pasos, h, xo, po, m, k, beta_inv, nu)
         implicit none
         integer, intent(in) :: pasos
         real, intent(in) :: h, xo, po, m, k, beta_inv, nu
@@ -270,9 +270,9 @@ module algoritmos_estocastios
 
         close(1001)
 
-    end subroutine Runge_Kutta_2
+    end subroutine Runge_Kutta_2_01
 
-    subroutine verlet_exp_est(pasos, h, xo, po, m, k, beta_inv, nu)
+    subroutine verlet_exp_est_01(pasos, h, xo, po, m, k, beta_inv, nu)
         implicit none
         integer, intent(in) :: pasos
         real, intent(in) :: h, xo, po, m, k, beta_inv, nu
@@ -316,7 +316,7 @@ module algoritmos_estocastios
         end do
         close(5)
 
-    end subroutine verlet_exp_est
+    end subroutine verlet_exp_est_01
 
     subroutine termalizacion_EM(pasos, h, xo, po, m, k, beta_inv, nu)
         implicit none
@@ -472,32 +472,130 @@ module algoritmos_estocastios
 
 end module algoritmos_estocastios
 
+module objetivo_2
+    use generador_normal
+    contains
+
+    subroutine verlet_doblepozo(pasos,h,xo,po,m,A,beta_inv,eta)
+        implicit none
+        integer, intent(in) :: pasos
+        real, intent(in) :: h, xo, po, m, A, beta_inv, eta
+        real :: x, p, n1, n2, z_det, verlet_a, verlet_b, aux, Ki, V, Ki_m, V_m
+        integer :: i, Contador, Contador2
+        
+        Contador2=0
+        Contador=0
+        x = xo
+        p = po
+        Ki=0.5*p*p/m
+        V=4*A*(x**2-1)**2
+        Ki_m=Ki
+        V_m=V
+        if (x>0) then
+            Contador=Contador+1
+        end if
+
+
+        open(unit=176, file="verlet_doblepozo.txt", status="replace")
+        open(unit=177, file="estancia_pozo1.txt", status="replace")
+        open(unit=178, file="estancia_pozo2.txt", status="replace")
+
+        write(176,*) 0.0,x,p, Ki_m, V_m, Contador
+        z_det=sqrt(2.0*eta*m*beta_inv*h)
+        verlet_a = (1-(eta*h)/2)/(1+(eta*h)/2)
+        verlet_b = 1/(1+(eta*h)/2)
+
+        do i = 1, pasos/2
+
+            call generar_normal_f90(n1,n2)
+
+            aux = x
+            x = x + verlet_b*h*p/m - verlet_b*h*h*2*A*x*(x**2-1)/m + verlet_b*h*z_det*n1/(2.0*m)
+            p = verlet_a*p - h*2*A*(verlet_a*aux*(aux**2-1) + x*(x**2-1)) + verlet_b*z_det*n1
+
+            Ki=0.5*p*p/m
+            V=4*A*(x**2-1)**2
+            Ki_m=Ki_m + Ki
+            V_m = V_m + V
+            if (x>0.0) then
+                Contador=Contador+1
+            end if
+            write(176,*) (2*i-1)*h,x,p, Ki_m/(2*i), V_m/(2*i), real(Contador)/(real(2*i))
+
+            if(x*aux>0.0) then
+                Contador2=Contador2+1
+            else
+                if (aux>0) then
+                    write(177,'(F10.3)') Contador2*h
+                else
+                    write(178,'(F10.3)') Contador2*h
+                end if
+                Contador2 = 0.0
+            end if
+
+            aux = x
+            x = x + verlet_b*h*p/m - verlet_b*h*h*2*A*x*(x**2-1)/m + verlet_b*h*z_det*n2/(2.0*m)
+            p = verlet_a*p - h*2*A*(verlet_a*aux*(aux**2-1) + x*(x**2-1)) + verlet_b*z_det*n2
+
+            Ki=0.5*p*p/m
+            V=4*A*(x**2-1)**2
+            Ki_m=Ki_m + Ki
+            V_m = V_m + V
+            if (x>0.0) then
+                Contador=Contador+1
+            end if
+            write(176,*) (2*i)*h,x,p, Ki_m/((2*i)+1), V_m/((2*i)+1), real(Contador)/(real((2*i)+1))
+
+            if(x*aux>0.0) then
+                Contador2=Contador2+1
+            else
+                if (aux>0.0) then
+                    write(177,'(F10.3)') Contador2*h
+                else
+                    write(178,'(F10.3)') Contador2*h
+                end if
+                Contador2 = 0.0
+            end if
+
+        end do
+
+        if(x>0.0) then
+            write(178,'(F10.3)') Contador2*h
+        else
+            write(177,'(F10.3)') Contador2*h
+        end if
+
+        close(176)
+        close(177)
+        close(178)
+
+    end subroutine verlet_doblepozo
+
+end module objetivo_2
+
 program main
 
     use generador_normal
     use algoritmos_estocastios
-
+    use objetivo_2
     implicit none
 
     integer :: tiempo, pasos
-    real :: h, x0, p0, m, k, beta_inv, eta
+    real :: h, x0, p0, m, A, beta_inv, eta
 
     ! Parametros de la simulacion
-    tiempo=5000
-    h=0.0001
+    tiempo=1000
+    h=0.001
     pasos=int(tiempo/h)
 
-    x0=3.0
+    x0=1.0
     p0=0.0
     m=1.0
-    k=1.0
-    beta_inv=1.0
-    eta=10
+    A=1.0
+    beta_inv=0.2
+    eta=1
 
-    call euler_maruyama(pasos,h,x0,p0,m,k,beta_inv,eta)
-    call Runge_Kutta_2(pasos,h,x0,p0,m,k,beta_inv,eta)
-    call verlet_exp_est(pasos,h,x0,p0,m,k,beta_inv,eta)
-
+    call verlet_doblepozo(pasos,h,x0,p0,m,A,beta_inv,eta)
 
     print *, "Pulsa ENTER para salir..."
     read(*,*)
