@@ -183,7 +183,7 @@ if False:
     plt.close()
 
 #distribuciones de x(t) y p(t) doble pozo
-if True:
+if False:
 
     h = 0.001
     eta = 1.0
@@ -269,7 +269,6 @@ if True:
 
     plt.show()
     plt.close()
-
 
 #Plots del distribución de x(t) y p(t)
 if False:
@@ -681,3 +680,231 @@ if False:
                 )
         plt.show()
         plt.close()
+
+#Plots objetivo 2 (h0.001, verlet explicito estocastico)
+if True:
+
+    A=0.5
+    eta=0.01
+    beta_inv = 0.2
+    m = 1.0
+
+    sigma =  np.sqrt(beta_inv*m)
+    p_teor = np.linspace(-4, 4, 500)
+    gauss_p = (1 / (np.sqrt(2 * np.pi)*sigma)) * np.exp(-p_teor**2 / (2*sigma**2))
+    
+    archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\verlet_doblepozo.txt"
+    pozo1 = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\estancia_pozo1.txt"
+    pozo2 = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\estancia_pozo2.txt"
+
+    # Cargar los datos
+    t, x, p, Ki_m, V_m, Fraccion_m = np.loadtxt(archivo, unpack=True)
+    Ki_final_VE = Ki_m[-1]
+    V_final_VE = V_m[-1]
+
+    est1 = np.loadtxt(pozo1, unpack=True)
+    est2 = np.loadtxt(pozo2, unpack=True)
+
+    # Crear las gráficas
+    fig, ax = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
+
+    # x(t)
+    ax[0].plot(t, x)
+    ax[0].set_ylabel("x(t)")
+    ax[0].set_title(f"Posición y momento (A{A}, eta{eta})")
+    ax[0].grid(True)
+
+    # v(t)
+    ax[1].plot(t, p)
+    ax[1].set_xlabel("t")
+    ax[1].set_ylabel("p(t)")
+    ax[1].grid(True)
+
+    plt.tight_layout()
+    plt.savefig(rf"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots/VerDP_A{A}_eta{eta}.png", dpi=300)
+    plt.show()
+    plt.close()
+
+    plt.figure(figsize=(8, 5))
+            
+    plt.plot(
+        t, Ki_m,
+        linewidth=0.6,
+        label=r"$\langle K\rangle$"
+        )
+            
+    plt.plot(
+        t, V_m,
+        linewidth=0.6,
+        label=r"$\langle V\rangle$"
+        )
+            
+    plt.axhline(
+        0.5*beta_inv,
+        linestyle="--",
+        linewidth=0.8,
+        label=fr"$k_BT/2={0.5*beta_inv:.1f}$"
+        )
+    
+    plt.title("Verlet")
+    plt.xlabel("Tiempo")
+    plt.ylabel("Energía media")
+    
+    plt.legend(
+        title=fr"$\eta={eta}$, $A={A}$" + "\n"
+        fr"$\langle V\rangle_f={V_final_VE:.4f}$" + "\n"
+        fr"$\langle Ki\rangle_f={Ki_final_VE:.4f}$"
+        )
+    
+    plt.grid(alpha=0.3)
+    
+    plt.tight_layout()
+    
+    plt.savefig(
+        fr"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\Equip_VDB_A{A}_eta{eta}.png",
+        dpi=300,
+        bbox_inches="tight"
+        )
+    
+    plt.show()
+    plt.close()
+
+    fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+
+    # Distribución de x(t)
+    axs[0].hist(
+        x,
+        bins=50,
+        density=True,
+        linewidth=0.5
+    )
+
+
+    axs[0].set_title("Distribución de x(t)")
+    axs[0].set_xlabel("x")
+    axs[0].set_ylabel("Densidad")
+    axs[0].grid(alpha=0.3)
+    axs[0].legend()
+
+    # Distribución de p(t)
+    axs[1].hist(
+        p,
+        bins=50,
+        density=True,
+        linewidth=0.5
+    )
+
+    axs[1].plot(
+        p_teor,
+        gauss_p,
+        "--",
+        linewidth=2,
+        label="Gaussiana teórica"
+    )
+
+    axs[1].set_title("Distribución de p(t)")
+    axs[1].set_xlabel("p")
+    axs[1].set_ylabel("Densidad")
+    axs[1].grid(alpha=0.3)
+    axs[1].legend()
+
+    # Título general
+    fig.suptitle(
+        rf"Verlet Explícito ($A={A}$, $\eta={eta}$)",
+        fontsize=15
+    )
+
+    plt.tight_layout()
+
+    # ============================================================
+    # GUARDAR FIGURA
+    # ============================================================
+
+    plt.savefig(
+        rf"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\VDP_distr_A{A}_eta{eta}.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.show()
+    plt.close()
+
+    plt.figure(figsize=(8, 5))
+            
+    plt.plot(
+        t, Fraccion_m,
+        linewidth=0.6,
+        )
+    
+    plt.title(f"Fraccion de tiempo en pozo 1 (A={A}, eta={eta})")
+    plt.xlabel("Tiempo")
+    plt.ylabel("Fracción de tiempo")
+    
+    plt.grid(alpha=0.3)
+    
+    plt.tight_layout()
+    
+    plt.savefig(
+        fr"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\FraccOcup_VDB_A{A}_eta{eta}.png",
+        dpi=300,
+        bbox_inches="tight"
+        )
+    
+    plt.show()
+    plt.close()
+
+    fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+
+    # Distribución de x(t)
+    axs[0].hist(
+        est1,
+        bins=50,
+        density=True,
+        linewidth=0.5
+    )
+
+
+    axs[0].set_title("Distribución pozo 1")
+    axs[0].set_xlabel("tiempo de estancia")
+    axs[0].set_ylabel("Densidad")
+    axs[0].grid(alpha=0.3)
+
+    # Distribución de p(t)
+    axs[1].hist(
+        est2,
+        bins=50,
+        density=True,
+        linewidth=0.5
+    )
+
+
+    axs[1].set_title("Distribución pozo 2")
+    axs[1].set_xlabel("tiempo de estancia")
+    axs[1].set_ylabel("Densidad")
+    axs[1].grid(alpha=0.3)
+
+    # Título general
+    fig.suptitle(
+        rf"Tiempos de estancia ($A={A}$, $\eta={eta}$)",
+        fontsize=15
+    )
+
+    plt.tight_layout()
+
+    # ============================================================
+    # GUARDAR FIGURA
+    # ============================================================
+
+    plt.savefig(
+        rf"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\t_estancia_A{A}_eta{eta}.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.show()
+    plt.close()
+
+
+
+    
+
