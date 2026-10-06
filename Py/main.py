@@ -702,8 +702,8 @@ if True:
     Ki_final_VE = Ki_m[-1]
     V_final_VE = V_m[-1]
 
-    est1 = np.loadtxt(pozo1, unpack=True)
-    est2 = np.loadtxt(pozo2, unpack=True)
+    est1 = np.loadtxt(pozo1,ndmin=1)
+    est2 = np.loadtxt(pozo2,ndmin=1)
 
     # Crear las gráficas
     fig, ax = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
@@ -784,7 +784,6 @@ if True:
     axs[0].set_xlabel("x")
     axs[0].set_ylabel("Densidad")
     axs[0].grid(alpha=0.3)
-    axs[0].legend()
 
     # Distribución de p(t)
     axs[1].hist(

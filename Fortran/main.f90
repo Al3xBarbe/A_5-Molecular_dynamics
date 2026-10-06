@@ -526,11 +526,11 @@ module objetivo_2
                 Contador2=Contador2+1
             else
                 if (aux>0) then
-                    write(177,'(F10.3)') Contador2*h
+                    write(178,*) Contador2*h
                 else
-                    write(178,'(F10.3)') Contador2*h
+                    write(177,*) Contador2*h
                 end if
-                Contador2 = 0.0
+                Contador2 = 0
             end if
 
             aux = x
@@ -550,19 +550,19 @@ module objetivo_2
                 Contador2=Contador2+1
             else
                 if (aux>0.0) then
-                    write(177,'(F10.3)') Contador2*h
+                    write(178,*) Contador2*h
                 else
-                    write(178,'(F10.3)') Contador2*h
+                    write(177,*) Contador2*h
                 end if
-                Contador2 = 0.0
+                Contador2 = 0
             end if
 
         end do
 
         if(x>0.0) then
-            write(178,'(F10.3)') Contador2*h
+            write(178,*) Contador2*h
         else
-            write(177,'(F10.3)') Contador2*h
+            write(177,*) Contador2*h
         end if
 
         close(176)
