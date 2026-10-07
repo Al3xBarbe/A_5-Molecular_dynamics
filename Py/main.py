@@ -684,8 +684,8 @@ if False:
 #Plots objetivo 2 (h0.001, verlet explicito estocastico)
 if True:
 
-    A=0.5
-    eta=0.01
+    A=2.0
+    eta=0.4
     beta_inv = 0.2
     m = 1.0
 
@@ -835,7 +835,7 @@ if True:
         linewidth=0.6,
         )
     
-    plt.title(f"Fraccion de tiempo en pozo 1 (A={A}, eta={eta})")
+    plt.title(f"Fraccion de tiempo en pozo 2 (A={A}, eta={eta})")
     plt.xlabel("Tiempo")
     plt.ylabel("Fracción de tiempo")
     

@@ -584,16 +584,16 @@ program main
     real :: h, x0, p0, m, A, beta_inv, eta
 
     ! Parametros de la simulacion
-    tiempo=1000
+    tiempo=50000
     h=0.001
     pasos=int(tiempo/h)
 
     x0=1.0
     p0=0.0
     m=1.0
-    A=1.0
+    A=2.0
     beta_inv=0.2
-    eta=1
+    eta=0.4
 
     call verlet_doblepozo(pasos,h,x0,p0,m,A,beta_inv,eta)
 
