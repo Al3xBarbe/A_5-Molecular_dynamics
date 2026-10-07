@@ -685,7 +685,7 @@ if False:
 if True:
 
     A=2.0
-    eta=0.4
+    eta=3.5
     beta_inv = 0.2
     m = 1.0
 
