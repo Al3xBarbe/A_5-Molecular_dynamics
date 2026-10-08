@@ -476,11 +476,12 @@ module objetivo_2
     use generador_normal
     contains
 
-    subroutine verlet_doblepozo(pasos,h,xo,po,m,A,beta_inv,eta)
+    subroutine verlet_doblepozo(pasos,h,xo,po,m,A,beta_inv,eta,F)
         implicit none
         integer, intent(in) :: pasos
-        real, intent(in) :: h, xo, po, m, A, beta_inv, eta
-        real :: x, p, n1, n2, z_det, verlet_a, verlet_b, aux, Ki, V, Ki_m, V_m
+        real, intent(in) :: h, xo, po, m, A, beta_inv, eta, F
+        real(kind=8) :: Ki_m, V_m, Ki, V
+        real :: x, p, n1, n2, z_det, verlet_a, verlet_b, aux
         integer :: i, Contador, Contador2
         
         Contador2=0
@@ -488,7 +489,7 @@ module objetivo_2
         x = xo
         p = po
         Ki=0.5*p*p/m
-        V=4*A*(x**2-1)**2
+        V=A*(x**2-1)**2
         Ki_m=Ki
         V_m=V
         if (x>0) then
@@ -510,11 +511,11 @@ module objetivo_2
             call generar_normal_f90(n1,n2)
 
             aux = x
-            x = x + verlet_b*h*p/m - verlet_b*h*h*2*A*x*(x**2-1)/m + verlet_b*h*z_det*n1/(2.0*m)
-            p = verlet_a*p - h*2*A*(verlet_a*aux*(aux**2-1) + x*(x**2-1)) + verlet_b*z_det*n1
+            x = x + verlet_b*h*p/m + verlet_b*h*h*(-4*A*x*(x**2-1)+F)/(2.0*m) + verlet_b*h*z_det*n1/(2.0*m)
+            p = verlet_a*p + h*(verlet_a*(-4*A*aux*(aux**2-1)+F) + (-4*A*x*(x**2-1)+F))/2 + verlet_b*z_det*n1
 
             Ki=0.5*p*p/m
-            V=4*A*(x**2-1)**2
+            V=A*(x**2-1)**2
             Ki_m=Ki_m + Ki
             V_m = V_m + V
             if (x>0.0) then
@@ -534,11 +535,11 @@ module objetivo_2
             end if
 
             aux = x
-            x = x + verlet_b*h*p/m - verlet_b*h*h*2*A*x*(x**2-1)/m + verlet_b*h*z_det*n2/(2.0*m)
-            p = verlet_a*p - h*2*A*(verlet_a*aux*(aux**2-1) + x*(x**2-1)) + verlet_b*z_det*n2
+            x = x + verlet_b*h*p/m + verlet_b*h*h*(-4*A*x*(x**2-1)+F)/(2*m) + verlet_b*h*z_det*n2/(2.0*m)
+            p = verlet_a*p + h*(verlet_a*(-4*A*aux*(aux**2-1)+F) + (-4*A*x*(x**2-1)+F))/2 + verlet_b*z_det*n2
 
             Ki=0.5*p*p/m
-            V=4*A*(x**2-1)**2
+            V=A*(x**2-1)**2
             Ki_m=Ki_m + Ki
             V_m = V_m + V
             if (x>0.0) then
@@ -581,21 +582,22 @@ program main
     implicit none
 
     integer :: tiempo, pasos
-    real :: h, x0, p0, m, A, beta_inv, eta
+    real :: h, x0, p0, m, A, beta_inv, eta, F
 
     ! Parametros de la simulacion
-    tiempo=50000
+    tiempo=80000
     h=0.001
     pasos=int(tiempo/h)
 
     x0=1.0
     p0=0.0
     m=1.0
-    A=2.0
+    A=0.5
     beta_inv=0.2
-    eta=3.5
+    eta=0.01
+    F=0.0
 
-    call verlet_doblepozo(pasos,h,x0,p0,m,A,beta_inv,eta)
+    call verlet_doblepozo(pasos,h,x0,p0,m,A,beta_inv,eta,F)
 
     print *, "Pulsa ENTER para salir..."
     read(*,*)

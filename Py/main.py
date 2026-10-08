@@ -975,3 +975,61 @@ if False:
                 plt.grid()
 
                 plt.show()
+
+if True:
+
+    A=0.5
+    eta=0.01
+    beta_inv = 0.2
+    m = 1.0
+    
+    archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\verlet_doblepozo.txt"
+
+    # Cargar los datos
+    t, x, p, Ki_m, V_m, Fraccion_m = np.loadtxt(archivo, unpack=True)
+    Ki_final_VE = Ki_m[-1]
+    V_final_VE = V_m[-1]
+
+    plt.figure(figsize=(8, 5))
+            
+    plt.plot(
+        t, Ki_m,
+        linewidth=0.6,
+        label=r"$\langle K\rangle$"
+        )
+            
+    plt.plot(
+        t, V_m,
+        linewidth=0.6,
+        label=r"$\langle V\rangle$"
+        )
+            
+    plt.axhline(
+        0.5*beta_inv,
+        linestyle="--",
+        linewidth=0.8,
+        label=fr"$k_BT/2={0.5*beta_inv:.1f}$"
+        )
+    
+    plt.title("Verlet")
+    plt.xlabel("Tiempo")
+    plt.ylabel("Energía media")
+    
+    plt.legend(
+        title=fr"$\eta={eta}$, $A={A}$" + "\n"
+        fr"$\langle V\rangle_f={V_final_VE:.4f}$" + "\n"
+        fr"$\langle Ki\rangle_f={Ki_final_VE:.4f}$"
+        )
+    
+    plt.grid(alpha=0.3)
+    
+    plt.tight_layout()
+    
+    plt.savefig(
+        fr"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\Equip_VDB_A{A}_eta{eta}.png",
+        dpi=300,
+        bbox_inches="tight"
+        )
+    
+    plt.show()
+    plt.close()
