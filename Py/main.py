@@ -682,7 +682,7 @@ if False:
         plt.close()
 
 #Plots objetivo 2 (h0.001, verlet explicito estocastico)
-if True:
+if False:
 
     A=2.0
     eta=3.5
@@ -903,90 +903,75 @@ if True:
     plt.show()
     plt.close()
 
+# Gráficas de termalización: comparación de algoritmos 
+if False:
 
-# --- Gráficas de termalización: comparación de algoritmos ---
-import numpy as np
-import matplotlib.pyplot as plt
+        # Leer tabla
+        datos = np.loadtxt("Fortran/Termalizacion_valores.txt", dtype=str)
 
-# Leer tabla
-datos = np.loadtxt("Fortran/Termalizacion_valores.txt", dtype=str)
-
-# Separar columnas
-algoritmo = datos[:, 0]
-eta = datos[:, 1].astype(float)
-h = datos[:, 2].astype(float)
-Ki = datos[:, 3].astype(float)
-V = datos[:, 4].astype(float)
+        # Separar columnas
+        algoritmo = datos[:, 0]
+        eta = datos[:, 1].astype(float)
+        h = datos[:, 2].astype(float)
+        Ki = datos[:, 3].astype(float)
+        V = datos[:, 4].astype(float)
 
 
-def plot_termalizacion(valor_eta, tipo_energia):
+        def plot_termalizacion(valor_eta, tipo_energia):
 
-    # Seleccionar solo las filas del eta que queremos
-    mask_eta = (eta == valor_eta)
+                # Seleccionar solo las filas del eta que queremos
+                mask_eta = (eta == valor_eta)
 
-    alg_eta = algoritmo[mask_eta]
-    h_eta = h[mask_eta]
-    Ki_eta = Ki[mask_eta]
-    V_eta = V[mask_eta]
+                alg_eta = algoritmo[mask_eta]
+                h_eta = h[mask_eta]
+                Ki_eta = Ki[mask_eta]
+                V_eta = V[mask_eta]
 
-    # Separar por algoritmo
-    mask_euler = (alg_eta == "Euler")
-    mask_rk = (alg_eta == "RK")
-    mask_ve = (alg_eta == "VE")
+                # Separar por algoritmo
+                mask_euler = (alg_eta == "Euler")
+                mask_rk = (alg_eta == "RK")
+                mask_ve = (alg_eta == "VE")
 
-    h_euler = h_eta[mask_euler]
-    h_rk = h_eta[mask_rk]
-    h_ve = h_eta[mask_ve]
+                h_euler = h_eta[mask_euler]
+                h_rk = h_eta[mask_rk]
+                h_ve = h_eta[mask_ve]
 
-    # Elegir qué energía queremos representar
-    if tipo_energia == "cinetica":
-        E_euler = Ki_eta[mask_euler]
-        E_rk = Ki_eta[mask_rk]
-        E_ve = Ki_eta[mask_ve]
+                # Elegir qué energía queremos representar
+                if tipo_energia == "cinetica":
+                        E_euler = Ki_eta[mask_euler]
+                        E_rk = Ki_eta[mask_rk]
+                        E_ve = Ki_eta[mask_ve]
 
-        ylabel = "Energía cinética media"
-        nombre = "cinetica"
+                        ylabel = "Energía cinética media"
 
-    elif tipo_energia == "potencial":
-        E_euler = V_eta[mask_euler]
-        E_rk = V_eta[mask_rk]
-        E_ve = V_eta[mask_ve]
+                elif tipo_energia == "potencial":
+                        E_euler = V_eta[mask_euler]
+                        E_rk = V_eta[mask_rk]
+                        E_ve = V_eta[mask_ve]
 
-        ylabel = "Energía potencial media"
-        nombre = "potencial"
+                        ylabel = "Energía potencial media"
 
-    else:
-        print("Tipo de energía no válido")
-        return
+                else:
+                        print("Tipo de energía no válido")
+                        return
 
-    # Crear gráfica
-    plt.figure()
+                # Crear gráfica
+                plt.figure()
 
-    plt.plot(h_euler, E_euler, marker="o", label="Euler-Maruyama")
-    plt.plot(h_rk, E_rk, marker="o", label="Runge-Kutta 2")
-    plt.plot(h_ve, E_ve, marker="o", label="Verlet explícito")
+                plt.plot(h_euler, E_euler, marker="o", label="Euler-Maruyama")
+                plt.plot(h_rk, E_rk, marker="o", label="Runge-Kutta 2")
+                plt.plot(h_ve, E_ve, marker="o", label="Verlet explícito")
 
-    # Valor teórico esperado por equipartición
-    plt.axhline(0.5, linestyle="--", label="Valor teórico = 0.5")
+                # Valor teórico esperado por equipartición
+                plt.axhline(0.5, linestyle="--", label="Valor teórico = 0.5")
 
-    plt.xscale("log")
+                plt.xscale("log")
 
-    plt.xlabel("h")
-    plt.ylabel(ylabel)
-    plt.title(f"Termalización: eta = {valor_eta}")
+                plt.xlabel("h")
+                plt.ylabel(ylabel)
+                plt.title(f"Termalización: eta = {valor_eta}")
 
-    plt.legend()
-    plt.grid()
+                plt.legend()
+                plt.grid()
 
-    plt.show()
-
-
-# Generar todas las gráficas
-plot_termalizacion(0.1, "cinetica")
-plot_termalizacion(0.1, "potencial")
-
-plot_termalizacion(1.0, "cinetica")
-plot_termalizacion(1.0, "potencial")
-
-plot_termalizacion(10.0, "cinetica")
-plot_termalizacion(10.0, "potencial")
+                plt.show()
