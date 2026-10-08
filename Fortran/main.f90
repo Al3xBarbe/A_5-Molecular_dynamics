@@ -593,7 +593,7 @@ program main
     m=1.0
     A=2.0
     beta_inv=0.2
-    eta=0.4
+    eta=3.5
 
     call verlet_doblepozo(pasos,h,x0,p0,m,A,beta_inv,eta)
 
