@@ -976,14 +976,17 @@ if False:
 
                 plt.show()
 
+#%%
+import numpy as np
+import matplotlib.pyplot as plt
 if True:
 
-    A=0.5
-    eta=0.01
+    A=2
+    eta=0.7
     beta_inv = 0.2
     m = 1.0
     
-    archivo = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\verlet_doblepozo.txt"
+    archivo = "/Users/juansazperez/Documents/A_5-Molecular_dynamics/verlet_doblepozo.txt"
 
     # Cargar los datos
     t, x, p, Ki_m, V_m, Fraccion_m = np.loadtxt(archivo, unpack=True)
@@ -1026,10 +1029,13 @@ if True:
     plt.tight_layout()
     
     plt.savefig(
-        fr"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\Equip_VDB_A{A}_eta{eta}.png",
-        dpi=300,
-        bbox_inches="tight"
-        )
+    fr"/Users/juansazperez/Documents/A_5-Molecular_dynamics/Py/plots/OBJETIVO_2/Equip_term_DP/amortiguado/A2.0/Equip_VDB_A{A}_eta{eta}.png",
+    dpi=300,
+    bbox_inches="tight"
+)
     
     plt.show()
     plt.close()
+
+
+# %%

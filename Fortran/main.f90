@@ -592,7 +592,7 @@ program main
     x0=1.0
     p0=0.0
     m=1.0
-    A=1
+    A=2
     beta_inv=0.2
     eta=0.7
     F=0.0
