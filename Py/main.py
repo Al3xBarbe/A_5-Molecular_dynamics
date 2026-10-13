@@ -977,9 +977,7 @@ if False:
                 plt.show()
 
 #%%
-import numpy as np
-import matplotlib.pyplot as plt
-if True:
+if False:
 
     A=2
     eta=0.7
@@ -1037,5 +1035,25 @@ if True:
     plt.show()
     plt.close()
 
+#fraccion de ocupacion en funcio de la fuerza
+if True:
+    ruta = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\fracc_p2(F)_3.txt"
 
-# %%
+    datos = np.loadtxt(ruta, comments="#", ndmin=2)
+
+    x = datos[:, 0]
+    y = datos[:, 1]
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(x, y, "o-", markersize=4)
+    plt.xlabel("Fuerza")
+    plt.ylabel("Fracción de ocupación del pozo 2")
+    plt.title("Dependencia de la fracción de ocupación del pozo 2 con la fuerza")
+    plt.grid(True)
+
+    # Leyenda solo con texto (sin símbolo)
+    plt.plot([], [], " ", label="Tiempo = 500000\nA = 0.5\n$\\eta$ = 1.0")
+    plt.legend(handlelength=0, handletextpad=0)
+
+    plt.tight_layout()
+    plt.show()

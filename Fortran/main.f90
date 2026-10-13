@@ -472,6 +472,7 @@ module algoritmos_estocastios
 
 end module algoritmos_estocastios
 
+
 module objetivo_2
     use generador_normal
     contains
@@ -560,17 +561,57 @@ module objetivo_2
 
         end do
 
-        if(x>0.0) then
-            write(178,*) Contador2*h
-        else
-            write(177,*) Contador2*h
-        end if
-
         close(176)
         close(177)
         close(178)
 
     end subroutine verlet_doblepozo
+
+    subroutine verlet_dp_fuerza(pasos,h,xo,po,m,A,beta_inv,eta,F)
+        implicit none
+        integer, intent(in) :: pasos
+        real, intent(in) :: h, xo, po, m, A, beta_inv, eta, F
+        real :: x, p, n1, n2, z_det, verlet_a, verlet_b, aux
+        integer :: i, Contador
+        
+        Contador=0
+        x = xo
+        p = po
+        if (x>0) then
+            Contador=Contador+1
+        end if
+
+        z_det=sqrt(2.0*eta*m*beta_inv*h)
+        verlet_a = (1-(eta*h)/2)/(1+(eta*h)/2)
+        verlet_b = 1/(1+(eta*h)/2)
+
+        do i = 1, pasos/2
+
+            call generar_normal_f90(n1,n2)
+
+            aux = x
+            x = x + verlet_b*h*p/m + verlet_b*h*h*(-4*A*x*(x**2-1)+F)/(2.0*m) + verlet_b*h*z_det*n1/(2.0*m)
+            p = verlet_a*p + h*(verlet_a*(-4*A*aux*(aux**2-1)+F) + (-4*A*x*(x**2-1)+F))/2 + verlet_b*z_det*n1
+
+            if (x>0.0) then
+                Contador=Contador+1
+            end if
+
+            aux = x
+            x = x + verlet_b*h*p/m + verlet_b*h*h*(-4*A*x*(x**2-1)+F)/(2*m) + verlet_b*h*z_det*n2/(2.0*m)
+            p = verlet_a*p + h*(verlet_a*(-4*A*aux*(aux**2-1)+F) + (-4*A*x*(x**2-1)+F))/2 + verlet_b*z_det*n2
+
+            if (x>0.0) then
+                Contador=Contador+1
+            end if
+
+        end do
+
+        print *, "Fraccion de tiempo en el pozo 2: ", real(Contador)/real(pasos)
+
+    end subroutine verlet_dp_fuerza
+
+    
 
 end module objetivo_2
 
@@ -585,19 +626,19 @@ program main
     real :: h, x0, p0, m, A, beta_inv, eta, F
 
     ! Parametros de la simulacion
-    tiempo=80000
+    tiempo=500000
     h=0.001
     pasos=int(tiempo/h)
 
     x0=1.0
     p0=0.0
     m=1.0
-    A=2
+    A=0.5
     beta_inv=0.2
-    eta=0.7
-    F=0.0
+    eta=1.0
+    F=-0.125
 
-    call verlet_doblepozo(pasos,h,x0,p0,m,A,beta_inv,eta,F)
+    call verlet_dp_fuerza(pasos,h,x0,p0,m,A,beta_inv,eta,F)
 
     print *, "Pulsa ENTER para salir..."
     read(*,*)
