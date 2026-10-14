@@ -615,6 +615,89 @@ module objetivo_2
 
 end module objetivo_2
 
+module objetivo_3
+    use generador_normal
+    contains
+
+    subroutine fuerzas(r,f,ue,l0,k)
+        implicit none
+        real, intent(in) :: r(:, :), l0, k
+        real, intent(out) :: f(:, :), ue
+        real :: d(3), l
+        integer :: i,n
+        n=size(r,2)
+        f=0.0
+        ue=0.0
+        do i=1,n-1
+            d = r(:,i+1) - r(:,i)
+            l=sqrt(sum(d**2))
+            ue=ue+0.5*k*(l-l0)**2
+            f(:,i+1)=f(:,i+1)-k*(l-l0)*(d/l)
+            f(:,i)=f(:,i)+k*(l-l0)*(d/l)
+        end do
+    end subroutine fuerzas
+
+    subroutine polimero(pasos, h, r, p, m, k, beta_inv, eta, l0)
+        implicit none
+        integer, intent(in) :: pasos
+        real, intent(in) :: h, m, k, beta_inv, eta, l0
+        real, intent(inout) :: r(:, :), p(:, :)
+        real :: f(size(r,1), size(r,2)), aux(size(r,1),size(r,2))
+        real :: n1(size(r,1),size(r,2)), n2(size(r,1),size(r,2))
+        real :: ue, z_det, verlet_a, verlet_b, Ki_m, V_m, gaus1, gaus2
+        integer :: i,j,ka
+
+        open(unit=180, file="Termalizacion_polimero.txt", status="replace")
+
+        z_det=sqrt(2.0*eta*m*beta_inv*h)
+        verlet_a = (1-(eta*h)/2)/(1+(eta*h)/2)
+        verlet_b = 1/(1+(eta*h)/2)
+        call fuerzas(r,f,ue,l0,k)
+
+        ki_m=0.5*sum(p**2)/m
+        V_m=ue
+
+        write(180,*) 0.0,Ki_m, V_m
+
+
+        do i = 1, pasos/2
+
+            do ka=1,size(r,2)
+                do j=1, size(r,1)
+                    call generar_normal(gaus1,gaus2)
+                    n1(j,ka)=gaus1
+                    n2(j,ka)=gaus2
+                end do 
+            end do 
+
+            aux = f
+            r = r + verlet_b*h*p/m + verlet_b*h*h*f/(2.0*m) + verlet_b*h*z_det*n1/(2.0*m)
+            call fuerzas(r,f,ue,l0,k)
+            p = verlet_a*p + h*(verlet_a*aux + f)/2 + verlet_b*z_det*n1
+            
+            Ki_m=Ki_m+0.5*sum(p**2)/m
+            V_m=V_m+ue
+
+            write(180,*) (2*i-1)*h, Ki_m/(2*i), V_m/(2*i)
+
+            aux = f
+            r = r + verlet_b*h*p/m + verlet_b*h*h*f/(2.0*m) + verlet_b*h*z_det*n2/(2.0*m)
+            call fuerzas(r,f,ue,l0,k)
+            p = verlet_a*p + h*(verlet_a*aux + f)/2 + verlet_b*z_det*n2
+
+            Ki_m=Ki_m+0.5*sum(p**2)/m
+            V_m=V_m+ue
+
+            write(180,*) 2*i*h, Ki_m/(2*i+1), V_m/(2*i+1)
+
+        end do
+
+        close(180)
+
+    end subroutine polimero 
+
+end module objetivo_3
+
 program main
 
     use generador_normal
@@ -624,6 +707,11 @@ program main
 
     integer :: tiempo, pasos
     real :: h, x0, p0, m, A, beta_inv, eta, F
+
+    !do i=1, n
+    !    r(:,i)=[real(i-1)*l0, 0.0, 0.0]
+    !end do
+    !p=0.0
 
     ! Parametros de la simulacion
     tiempo=500000
