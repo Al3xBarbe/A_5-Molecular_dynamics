@@ -664,7 +664,7 @@ module objetivo_3
 
             do ka=1,size(r,2)
                 do j=1, size(r,1)
-                    call generar_normal(gaus1,gaus2)
+                    call generar_normal_f90(gaus1,gaus2)
                     n1(j,ka)=gaus1
                     n2(j,ka)=gaus2
                 end do 
