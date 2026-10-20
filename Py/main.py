@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
+from scipy.stats import linregress
+
 
 # Plots de generador de numeros aleatoios
 if False:
@@ -1036,8 +1038,8 @@ if False:
     plt.close()
 
 #fraccion de ocupacion en funcio de la fuerza
-if True:
-    ruta = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\fracc_p2(F)_3.txt"
+if False:
+    ruta = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\OBJETIVO_2\Fracc_ocup(F)\fracc_p2(F)_3.txt"
 
     datos = np.loadtxt(ruta, comments="#", ndmin=2)
 
@@ -1057,3 +1059,197 @@ if True:
 
     plt.tight_layout()
     plt.show()
+
+#Term Polimero
+if False:
+    ruta = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\Termalizacion_polimero.txt"
+    N = 4           # número de monómeros
+    ke = 100.0       # constante del muelle
+    beta_inv = 1.0   # = kBT
+    h = 0.001
+    frac_zoom = 0.2  # fracción final de la simulación que se amplía
+
+    datos = np.loadtxt(ruta, ndmin=2)
+    t  = datos[:, 0]
+    Ec = datos[:, 1]
+    Ep = datos[:, 2]
+
+    Ec_esp = 1.5 * N * beta_inv
+    Ep_esp = 0.5 * (N - 1) * beta_inv
+
+    fig, axs = plt.subplots(1, 2, figsize=(13, 5))
+    fig.suptitle(rf"Termalización polímero ($N={N}$, $k_e={ke:g}$)")
+
+    # Zona del zoom
+    i0 = int(len(t) * (1 - frac_zoom))
+    tz = t[i0:]
+
+    configs = [
+        dict(ax=axs[0], y=Ec, esp=Ec_esp, color="tab:blue",
+             lab_esp=rf"$3Nk_BT/2={Ec_esp:.3f}$",
+             ylabel="Energía cinética media"),
+        dict(ax=axs[1], y=Ep, esp=Ep_esp, color="tab:green",
+             lab_esp=rf"$(N-1)k_BT/2={Ep_esp:.3f}$",
+             ylabel="Energía potencial media"),
+    ]
+
+    for c in configs:
+        ax, y, esp, color = c["ax"], c["y"], c["esp"], c["color"]
+
+        ax.plot(t, y, color=color, linewidth=0.8)
+        ax.axhline(esp, color="k", linestyle="--", linewidth=0.8,
+                   label=c["lab_esp"])
+        ax.set_xlabel("Tiempo")
+        ax.set_ylabel(c["ylabel"])
+        ax.grid(alpha=0.3)
+        ax.legend(loc="upper left")
+
+        # Ventana de zoom
+        yz = y[i0:]
+        axins = ax.inset_axes([0.45, 0.2, 0.5, 0.4])
+        axins.plot(tz, yz, color=color, linewidth=0.8)
+        axins.axhline(esp, color="k", linestyle="--", linewidth=0.8)
+        axins.set_xlim(tz[0], tz[-1])
+        ymin = min(yz.min(), esp)
+        ymax = max(yz.max(), esp)
+        margen = 0.05 * (ymax - ymin) if ymax > ymin else 0.05
+        axins.set_ylim(ymin - margen, ymax + margen)
+        axins.grid(alpha=0.3)
+        axins.tick_params(labelsize=8)
+        ax.indicate_inset_zoom(axins, edgecolor="black")
+
+    plt.tight_layout()
+    plt.savefig(
+        fr"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\Equip_polimero_N{N}_ke{ke}.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+    plt.show()
+    plt.close()
+
+#Valor medio Rg^2
+if False:
+    ruta = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\Radio_giro.txt"
+    N = 4            # número de monómeros
+    ke = 100.0        # constante del muelle
+    h = 0.001
+    frac_zoom = 0.5   # fracción final de la simulación que se amplía
+
+    datos = np.loadtxt(ruta, ndmin=2)
+    t   = datos[:, 0]
+    rg2 = datos[:, 1]
+
+    final = rg2[-1]
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    ax.plot(t, rg2, color="tab:red", linewidth=1.0)
+
+    ax.set_title(rf"Radio de giro del polímero ($N={N}$, $k_e={ke:g}$)")
+    ax.set_xlabel("Tiempo")
+    ax.set_ylabel(r"$\langle R_G^2\rangle$")
+    ax.grid(alpha=0.3)
+
+    # Leyenda de solo texto con el valor final
+    ax.plot([], [], " ", label=rf"$\langle R_G^2\rangle_f={final:.3f}$")
+    ax.legend(loc="upper right", handlelength=0, handletextpad=0)
+
+    # ---------- Ventana de zoom ----------
+    i0 = int(len(t) * (1 - frac_zoom))
+    tz, yz = t[i0:], rg2[i0:]
+
+    axins = ax.inset_axes([0.3, 0.3, 0.65, 0.4])   # [x, y, ancho, alto]
+    axins.plot(tz, yz, color="tab:red", linewidth=0.8)
+    axins.set_xlim(tz[0], tz[-1])
+    margen = 0.1 * (yz.max() - yz.min())
+    axins.set_ylim(yz.min() - margen, yz.max() + margen)
+    axins.locator_params(axis="x", nbins=4)
+    axins.grid(alpha=0.3)
+    axins.tick_params(labelsize=8)
+
+    ax.indicate_inset_zoom(axins, edgecolor="black")
+
+    plt.tight_layout()
+    plt.savefig(
+        fr"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\Rg2_N{N}_ke{ke:g}.png",
+        dpi=300, bbox_inches="tight"
+    )
+    plt.show()
+    plt.close()
+
+#plot scatter
+if False:
+    ruta = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\valores_rg_2.txt"
+    ke = 100.0        # constante del muelle
+
+    datos = np.loadtxt(ruta, comments="#", ndmin=2)
+    N   = datos[:, 0]
+    rg2 = datos[:, 1]
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    ax.scatter(N, rg2, color="navy", s=25)
+
+    ax.set_title(rf"Radio de giro frente al tamaño del polímero ($k_e={ke:g}$)")
+    ax.set_xlabel(r"$N$")
+    ax.set_ylabel(r"$\langle R_G^2\rangle$")
+
+    plt.tight_layout()
+    plt.savefig(
+        fr"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\Rg2_vs_N_puntos_ke{ke:g}.png",
+        dpi=300, bbox_inches="tight"
+    )
+    plt.show()
+    plt.close()
+
+#Regresión lineal
+if False:
+    ruta = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\valores_rg_2.txt"
+    ke = 100.0        # constante del muelle
+
+    datos = np.loadtxt(ruta, comments="#", ndmin=2)
+    N   = datos[:, 0]
+    rg2 = datos[:, 1]
+
+    # Regresión lineal en log-log: ln(Rg2) = alpha*ln(N) + ln(A)
+    res = linregress(np.log(N), np.log(rg2))
+
+    alpha, alpha_err = res.slope, res.stderr
+    c, c_err = res.intercept, res.intercept_stderr
+    r2 = res.rvalue**2
+
+    nu, nu_err = alpha / 2, alpha_err / 2
+    A = np.exp(c)
+    A_err = A * c_err        # propagación: dA = A * dc
+
+    print("=== RESULTADOS DE LA REGRESIÓN LINEAL (log-log) ===")
+    print(f"Exponente alpha (Rg^2 ~ N^alpha) : {alpha:.4f} ± {alpha_err:.4f}")
+    print(f"Exponente de escala nu = alpha/2 : {nu:.4f} ± {nu_err:.4f}")
+    print(f"Constante A                      : {A:.4f} ± {A_err:.4f}")
+    print(f"R^2                              : {r2:.5f}")
+
+    N_fit = np.linspace(N.min(), N.max(), 200)
+
+    fig, ax = plt.subplots(figsize=(8, 5.5))
+
+    ax.scatter(N, rg2, color="navy", s=25, zorder=3, label="Simulación")
+
+    ax.plot(N_fit, A * N_fit**alpha, "k--", linewidth=1.2,
+            label=rf"Ajuste: $\langle R_G^2\rangle=({A:.3f}\pm{A_err:.3f})\,N^{{{alpha:.3f}\pm{alpha_err:.3f}}}$" "\n"
+                  rf"$\nu={nu:.3f}\pm{nu_err:.3f}$,  $R^2={r2:.5f}$")
+
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_title(rf"Ley de escala del radio de giro ($k_e={ke:g}$)")
+    ax.set_xlabel(r"$N$")
+    ax.set_ylabel(r"$\langle R_G^2\rangle$")
+    ax.grid(True, which="both", ls="--", alpha=0.4)
+    ax.legend(loc="upper left")
+
+    plt.tight_layout()
+    plt.savefig(
+        fr"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\Rg2_vs_N_loglog_ke{ke:g}.png",
+        dpi=300, bbox_inches="tight"
+    )
+    plt.show()
+    plt.close()
