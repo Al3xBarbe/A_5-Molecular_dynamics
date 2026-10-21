@@ -905,6 +905,7 @@ if False:
     plt.show()
     plt.close()
 
+
 # Gráficas de termalización: comparación de algoritmos 
 if False:
 
@@ -1120,6 +1121,94 @@ for nombre_archivo, A, eta in simulaciones:
     plt.show()
     plt.close()
 
+
+# %%
+# ============================================================
+# OBJETIVO 2 - TIEMPO MEDIO DE ESTANCIA FRENTE A ETA, calculo de los tiempos medios de estancia
+# ============================================================
+
+import numpy as np
+from pathlib import Path
+
+
+carpeta = Path("/Users/juansazperez/Documents/A_5-Molecular_dynamics/Py/plots/OBJETIVO_2/Tiempos_medios_eta")
+print("¿Existe la carpeta?", carpeta.exists())
+
+for archivo in carpeta.glob("*.txt"):
+    print(archivo.name)
+A = 0.5
+etas = [0.1, 0.4, 0.7, 1.0]
+
+for eta in etas:
+
+    nombre1 = f"estancia_pozo1_A{A:.2f}_eta{eta:.2f}.txt"
+    nombre2 = f"estancia_pozo2_A{A:.2f}_eta{eta:.2f}.txt"
+
+    est1 = np.loadtxt(carpeta / nombre1, ndmin=1)
+    est2 = np.loadtxt(carpeta / nombre2, ndmin=1)
+
+    print(f"\nA = {A}, eta = {eta}")
+    print(f"Pozo 1: {len(est1)} estancias, media = {np.mean(est1):.4f}")
+    print(f"Pozo 2: {len(est2)} estancias, media = {np.mean(est2):.4f}")
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 2 - TIEMPO MEDIO DE ESTANCIA FRENTE A ETA, representacion grafica de los tiempos medios de estancia
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+# Carpeta con los archivos de las simulaciones
+carpeta = Path(
+    "/Users/juansazperez/Documents/A_5-Molecular_dynamics/"
+    "Py/plots/OBJETIVO_2/Tiempos_medios_eta/A2.0"
+)
+
+# Parametros
+A = 2.0
+etas = [0.1, 0.4, 0.7, 1.0]
+
+medias1 = []
+medias2 = []
+
+for eta in etas:
+
+    archivo1 = carpeta / f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
+    archivo2 = carpeta / f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
+
+    est1 = np.loadtxt(archivo1, ndmin=1)
+    est2 = np.loadtxt(archivo2, ndmin=1)
+
+    medias1.append(np.mean(est1))
+    medias2.append(np.mean(est2))
+
+# Representacion grafica
+plt.figure(figsize=(8, 5))
+
+plt.plot(etas, medias1, "o-", label="Pozo 1")
+plt.plot(etas, medias2, "s-", label="Pozo 2")
+
+plt.xlabel(r"Coeficiente de amortiguamiento $\eta$")
+plt.ylabel(r"Tiempo medio de estancia $\langle \tau \rangle$")
+
+plt.title(
+    "Objetivo 2: Tiempo medio de estancia frente al amortiguamiento"
+)
+
+plt.legend(title=rf"$A={A}$, $k_BT=0.2$")
+plt.grid(alpha=0.3)
+plt.tight_layout()
+
+# Guardar grafica
+salida = carpeta / f"Tiempo_medio_estancia_A{A}.png"
+
+plt.savefig(salida, dpi=300, bbox_inches="tight")
+plt.show()
+plt.close()
 
 
 
