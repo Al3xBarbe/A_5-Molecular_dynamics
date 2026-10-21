@@ -1037,7 +1037,7 @@ if False:
     plt.show()
     plt.close()
 
-#fraccion de ocupacion en funcio de la fuerza
+#fraccion de ocupacion en funcion de la fuerza
 if False:
     ruta = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\OBJETIVO_2\Fracc_ocup(F)\fracc_p2(F)_3.txt"
 
@@ -1059,6 +1059,72 @@ if False:
 
     plt.tight_layout()
     plt.show()
+
+
+
+# %% 
+# OBJETIVO 2 - COCIENTE DE OCUPACIONES EN FUNCIÓN DE LA FUERZA
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+# Carpeta donde están los archivos de datos
+carpeta = Path("/Users/juansazperez/Documents/A_5-Molecular_dynamics/Py/plots/OBJETIVO_2/Fracc_ocup(F)")
+
+# Archivos y parámetros de las tres simulaciones
+simulaciones = [
+    ("fracc_p2(F)_1.txt", 0.5, 0.4),
+    ("fracc_p2(F)_2.txt", 0.5, 1.0),
+    ("fracc_p2(F)_3.txt", 1.0, 0.4),
+]
+
+for nombre_archivo, A, eta in simulaciones:
+
+    # Leer datos: primera columna F, segunda P+
+    datos = np.loadtxt(carpeta / nombre_archivo, comments="#")
+
+    F = datos[:, 0]
+    P = datos[:, 1]
+
+    # Calcular cociente de ocupaciones
+    # Evitamos dividir entre cero cuando P = 1
+    R = np.divide(
+        P,
+        1.0 - P,
+        out=np.full_like(P, np.nan),
+        where=(P < 1.0)
+    )
+
+    # Crear una figura independiente
+    plt.figure(figsize=(8, 5))
+
+    plt.plot(F, R, "o-", markersize=4)
+
+    plt.xlabel("Fuerza F")
+    plt.yscale("log")
+    plt.ylabel(r"Cociente de ocupaciones $n_+/n_-$")
+    plt.title(
+    "Objetivo 2: Cociente de ocupaciones frente a la fuerza\n"
+    "Representación en escala semilogarítmica"
+    )
+
+    plt.grid(alpha=0.3)
+    plt.tight_layout()
+
+    # Guardar en la misma carpeta
+    salida = carpeta / f"Cociente_ocup_A{A}_eta{eta}.png"
+
+    plt.savefig(salida, dpi=300, bbox_inches="tight")
+
+    plt.show()
+    plt.close()
+
+
+
+
+
+
 
 #Term Polimero
 if False:
@@ -1253,3 +1319,5 @@ if False:
     )
     plt.show()
     plt.close()
+
+# %%
