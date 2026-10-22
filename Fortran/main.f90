@@ -799,47 +799,51 @@ program main
     use generador_normal
     use algoritmos_estocastios
     use objetivo_2
-    !use objetivo_3
+    use objetivo_3
     implicit none
 
-    integer :: tiempo, pasos
-    !integer :: i
-    !real :: ke
-    !integer, parameter :: n=4
-    !real(dp) :: h, m, ke, beta_inv, eta, l0
-    real :: F,x0,p0,A, h, m, beta_inv, eta
-    !real(dp) :: r(3,n), p(3,n)
+!OBJETIVO 2
 
-    ! Parametros de la simulacion
-    tiempo=500000
-    !h=0.001_dp
-    h=0.001
-    pasos=int(real(tiempo)/h)
-    !pasos=int(real(tiempo_dp)/h)
+    !integer :: tiempo, pasos
+    !real :: F,x0,p0,A, h, m, beta_inv, eta
+
+    !tiempo=500000
+    !h=0.001
+    !pasos=int(real(tiempo)/h)
     
+    !x0=1.0
+    !p0=0.0
+    !F=-0.80
+    !A=0.5
+    !m = 1.0
+    !beta_inv = 0.2
+    !eta = 0.4
 
-    x0=1.0
-    p0=0.0
-    F=-0.80
-    A=0.5
-    m = 1.0
-    beta_inv = 0.2
-    eta = 0.4
+!OBJETIVO 3
 
-    !l0=1.0_dp
-    !do i=1, n
-    !    r(:,i)=[real(i-1,dp)*l0, 0.0_dp, 0.0_dp]
-    !end do
-    !p=0.0_dp
-
-    !m=1.0_dp
-    !ke=100.0_dp
-    !beta_inv=1.0_dp
-    !eta=1.0_dp
+    integer :: i
+    integer, parameter :: n=6
+    real(dp) :: h, m, ke, beta_inv, eta, l0
+    real(dp) :: r(3,n), p(3,n)
+    integer :: tiempo, pasos
 
 
-    !call radio_giro(pasos,h,r,p,m,ke,beta_inv,eta,l0)
-    call verlet_dp_fuerza(pasos,h,x0,p0,m,A,beta_inv,eta,F)
+    tiempo=150000
+    h=0.001_dp
+    pasos=int(real(tiempo,dp)/h)
+    l0=1.0_dp
+    do i=1, n
+        r(:,i)=[real(i-1,dp)*l0, 0.0_dp, 0.0_dp]
+    end do
+    p=0.0_dp
+    m=1.0_dp
+    ke=100.0_dp
+    beta_inv=1.0_dp
+    eta=1.0_dp
+
+
+    call radio_giro(pasos,h,r,p,m,ke,beta_inv,eta,l0)
+    !call verlet_dp_fuerza(pasos,h,x0,p0,m,A,beta_inv,eta,F)
 
     print *, "Pulsa ENTER para salir..."
     read(*,*)
