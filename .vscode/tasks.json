@@ -8,9 +8,9 @@
             "args": [
                 "-g",
                 "-O0",
-                "${workspaceFolder}/fortran/main.f90",
+                "${workspaceFolder}/fortran/Alex.f90",
                 "-o",
-                "${workspaceFolder}/fortran/main.exe"
+                "${workspaceFolder}/fortran/Alex.exe"
             ],
             "group": {
                 "kind": "build",

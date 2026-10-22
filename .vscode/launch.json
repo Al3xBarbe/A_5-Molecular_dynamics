@@ -5,7 +5,7 @@
             "name": "Fortran: Run",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/fortran/main.exe",
+            "program": "${workspaceFolder}/fortran/Alex.exe",
             "cwd": "${workspaceFolder}/fortran",
             "stopAtEntry": false,
             "externalConsole": true,
