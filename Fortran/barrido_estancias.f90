@@ -472,7 +472,6 @@ module algoritmos_estocastios
 
 end module algoritmos_estocastios
 
-
 module objetivo_2
     use generador_normal
     contains
