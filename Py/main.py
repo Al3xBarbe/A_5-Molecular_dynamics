@@ -2473,4 +2473,215 @@ if False:
     plt.show()
     plt.close()
 
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 3 - EQUIPARTICION DEL POLIMERO
+# ke = 1000, N = 8, 16, 32, 64
+# GRAFICAS CON ZOOM Y FORMULAS TEORICAS
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+# Parametros
+valores_N = [8, 16, 32, 64]
+
+ke = 1000
+kBT = 1.0
+l0 = 1.0
+
+# Carpetas
+carpeta_datos = (
+    base / "Py/plots/OBJETIVO_3/Datos/k1000/EQUIP_E"
+)
+
+carpeta_salida = (
+    base / "Py/plots/OBJETIVO_3/EQUIP_E/k1000"
+)
+
+carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+# Comprobar archivos de salida antes de generar figuras
+for N in valores_N:
+    salida = carpeta_salida / f"Equip_polimero_N{N}_ke{ke}_zoom.png"
+
+    if salida.exists():
+        raise FileExistsError(
+            f"El archivo ya existe: {salida}"
+        )
+
+# ============================================================
+# BUCLE SOBRE LOS DISTINTOS TAMANOS
+# ============================================================
+
+for N in valores_N:
+
+    archivo = (
+        carpeta_datos /
+        f"Termalizacion_polimero_N{N}_ke{ke}.txt"
+    )
+
+    # Leer datos de Fortran
+    t, K_m, V_m = np.loadtxt(archivo, unpack=True)
+
+    # Valores teoricos
+    K_teor = 3 * N * kBT / 2
+
+    sigma2 = kBT / ke
+
+    V_enlace = (kBT / 2) * (
+        (l0**2 + 3*sigma2) /
+        (l0**2 + sigma2)
+    )
+
+    V_teor = (N - 1) * V_enlace
+
+    # Imprimir resultados
+    print(f"\nN = {N}, ke = {ke}")
+    print(f"Tiempo final = {t[-1]:.2f}")
+    print(f"<K> simulacion = {K_m[-1]:.5f}")
+    print(f"<K> teorico    = {K_teor:.5f}")
+    print(f"<V> simulacion = {V_m[-1]:.5f}")
+    print(f"<V> teorico    = {V_teor:.5f}")
+
+    # ========================================================
+    # CREAR FIGURA
+    # ========================================================
+
+    fig, axs = plt.subplots(1, 2, figsize=(15, 6))
+
+    datos = [
+        (K_m, K_teor, "Energía cinética media", "tab:blue"),
+        (V_m, V_teor, "Energía potencial media", "tab:green")
+    ]
+
+    for ax, (energia, valor_teor, titulo, color) in zip(axs, datos):
+
+        # Grafica principal
+        ax.plot(
+            t, energia,
+            color=color,
+            linewidth=1
+        )
+
+        # Formulas en la leyenda
+        if ax is axs[0]:
+            etiqueta = (
+                rf"$\langle K\rangle = "
+                rf"\frac{{3N}}{{2}}k_BT = {K_teor:.3f}$"
+            )
+        else:
+            etiqueta = (
+                rf"$\langle V\rangle \simeq "
+                rf"\frac{{N-1}}{{2}}k_BT"
+                rf" = {V_teor:.3f}$"
+            )
+
+        # Linea teorica
+        ax.axhline(
+            valor_teor,
+            color="black",
+            linestyle="--",
+            linewidth=1,
+            label=etiqueta
+        )
+
+        ax.set_title(titulo)
+        ax.set_xlabel("Tiempo")
+        ax.set_ylabel("Energía media")
+        ax.grid(alpha=0.3)
+        ax.legend(loc="upper left")
+
+        # ====================================================
+        # ZOOM: ULTIMAS 6000 UNIDADES DE TIEMPO
+        # ====================================================
+
+        t_inicio = max(t[0], t[-1] - 6000)
+        mascara = t >= t_inicio
+
+        ax_zoom = ax.inset_axes(
+            [0.45, 0.12, 0.52, 0.43]
+        )
+
+        ax_zoom.plot(
+            t, energia,
+            color=color,
+            linewidth=1
+        )
+
+        ax_zoom.axhline(
+            valor_teor,
+            color="black",
+            linestyle="--",
+            linewidth=1
+        )
+
+        ax_zoom.set_xlim(t_inicio, t[-1])
+
+        valores_zoom = energia[mascara]
+
+        y_min = min(np.min(valores_zoom), valor_teor)
+        y_max = max(np.max(valores_zoom), valor_teor)
+
+        margen = max((y_max - y_min) * 0.15, 0.005)
+
+        ax_zoom.set_ylim(
+            y_min - margen,
+            y_max + margen
+        )
+
+        ax_zoom.grid(alpha=0.3)
+        ax_zoom.tick_params(
+            axis="both",
+            labelsize=8
+        )
+
+        # Recuadro y lineas de conexion
+        ax.indicate_inset_zoom(
+            ax_zoom,
+            edgecolor="gray"
+        )
+
+    # Titulo general
+    fig.suptitle(
+        rf"Termalización del polímero ($N={N}$, $k_e={ke}$)",
+        fontsize=16
+    )
+
+    plt.tight_layout()
+
+    # ========================================================
+    # GUARDAR FIGURA
+    # ========================================================
+
+    salida = (
+        carpeta_salida /
+        f"Equip_polimero_N{N}_ke{ke}_zoom.png"
+    )
+
+    if salida.exists():
+        plt.close(fig)
+        raise FileExistsError(
+            f"No se sobrescribira el archivo: {salida}"
+        )
+
+    plt.savefig(
+        salida,
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.show()
+    plt.close()
+
+    print("Gráfica guardada en:", salida)
+
+print("\nTodas las gráficas generadas.")
+
 # %%

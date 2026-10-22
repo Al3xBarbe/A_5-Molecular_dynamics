@@ -621,6 +621,7 @@ module objetivo_3
     integer, parameter :: dp = kind(1.0d0)   ! precision doble (main la hereda con "use objetivo_3")
     contains
 
+    !Rutina que calcula la energía potencial y las fuerzas sobre cada monómero del polimero, dado un conjunto de posiciones r
     subroutine fuerzas(r,f,ue,l0,k)
         real(dp), intent(in) :: r(:, :), l0, k
         real(dp), intent(out) :: f(:, :), ue
@@ -629,15 +630,17 @@ module objetivo_3
         n=size(r,2)
         f=0.0_dp
         ue=0.0_dp
+        !Bucle a lo largo de los enlaces del polimero para calcular la energia potencial y las fuerzas
         do i=1,n-1
             d = r(:,i+1) - r(:,i)
             l=sqrt(sum(d**2))
-            ue=ue+0.5_dp*k*(l-l0)**2
+            ue=ue+0.5_dp*k*(l-l0)**2 
             f(:,i+1)=f(:,i+1)-k*(l-l0)*(d/l)
             f(:,i)=f(:,i)+k*(l-l0)*(d/l)
         end do
     end subroutine fuerzas
 
+    !Rutina principal que implementa el algoritmo de Verlet estocástico para simular la dinámica de un polimero en un baño térmico
     subroutine polimero(pasos, h, r, p, m, k, beta_inv, eta, l0)
         integer, intent(in) :: pasos
         real(dp), intent(in) :: h, m, k, beta_inv, eta, l0
@@ -649,21 +652,24 @@ module objetivo_3
         real(dp) :: ue, Ki_m, V_m
         integer :: i,j,ka
 
+        !Aquí guardaremos la energía cinética y potencial promedio del polimero a lo largo de la simulación
         open(unit=180, file="Termalizacion_polimero.txt", status="replace")
 
         z_det=sqrt(2.0_dp*eta*m*beta_inv*h)
         verlet_a = (1.0_dp-(eta*h)/2.0_dp)/(1.0_dp+(eta*h)/2.0_dp)
         verlet_b = 1.0_dp/(1.0_dp+(eta*h)/2.0_dp)
         call fuerzas(r,f,ue,l0,k)
-
+        !Energía cinética y potencial inicial del polimero
         ki_m=0.5_dp*sum(p**2)/m
         V_m=ue
 
         write(180,*) 0.0_dp,Ki_m, V_m
 
-
+        !Bucle principal de la simulación, donde se actualizan las posiciones y velocidades del polimero usando el algoritmo de Verlet estocástico
+        !Hace pasos/2 iteraciones, y en cada iteración se generan dos pasos de tiempo, uno con n1 y otro con n2
         do i = 1, pasos/2
 
+            !Generamos dos matrices de números aleatorios gaussianos n1 y n2, que se usarán para actualizar las posiciones y velocidades del polimero
             do ka=1,size(r,2)
                 do j=1, size(r,1)
                     call generar_normal_f90(gaus1,gaus2)
@@ -671,17 +677,20 @@ module objetivo_3
                     n2(j,ka)=gaus2
                 end do 
             end do 
-
+            
+            !Actualizamos las posiciones y velocidades del polimero usando el algoritmo de Verlet estocástico con n1
             aux = f
             r = r + verlet_b*h*p/m + verlet_b*h*h*f/(2.0_dp*m) + verlet_b*h*z_det*n1/(2.0_dp*m)
             call fuerzas(r,f,ue,l0,k)
             p = verlet_a*p + h*(verlet_a*aux + f)/2.0_dp + verlet_b*z_det*n1
             
+            !Calculamos la energía cinética y potencial del polimero después de este paso, y las acumulamos en Ki_m y V_m para obtener el promedio
             Ki_m=Ki_m+0.5_dp*sum(p**2)/m
             V_m=V_m+ue
 
             if (mod(i,50) == 0) write(180,*) (2*i-1)*h, Ki_m/(2*i), V_m/(2*i)
 
+            !Repetimos el mismo proceso con n2, generando otro paso de tiempo y actualizando las posiciones y velocidades del polimero
             aux = f
             r = r + verlet_b*h*p/m + verlet_b*h*h*f/(2.0_dp*m) + verlet_b*h*z_det*n2/(2.0_dp*m)
             call fuerzas(r,f,ue,l0,k)
@@ -698,6 +707,10 @@ module objetivo_3
 
     end subroutine polimero
     
+    !El radio de giro es una medida de la extensión espacial de un objeto, como un polimero, 
+    !y se define como la raíz cuadrada del promedio de las distancias al cuadrado de cada monómero respecto al centro de masa del polimero. 
+    !En esta rutina, se calcula el radio de giro promedio del polimero a lo largo de la simulación.
+    !Rutina que calcula el radio de giro promedio del polimero a lo largo de la simulación
     subroutine radio_giro (pasos, h, r, p, m, k, beta_inv, eta, l0)
         integer, intent(in) :: pasos
         real(dp), intent(in) :: h, m, k, beta_inv, eta, l0
@@ -706,6 +719,7 @@ module objetivo_3
         real(dp) :: n1(size(r,1),size(r,2)), n2(size(r,1),size(r,2))
         real(dp) :: z_det, verlet_a, verlet_b
         real :: gaus1, gaus2
+        !Centro de masa del polimero, radio de giro al cuadrado, radio de giro promedio y energía potencial
         real(dp) :: rcm(3), rg2, rg2_m, ue
         integer :: i,j,ka
 
@@ -717,6 +731,7 @@ module objetivo_3
         call fuerzas(r,f,ue,l0,k)
 
         rcm = sum(r, dim=2) / size(r,2)
+        !Calculo radio de giro al cuadrado del polimero en la configuracion inicial
         rg2 = 0.0_dp
         do i = 1, size(r,2)
             rg2 = rg2 + sum((r(:,i) - rcm)**2)
@@ -751,7 +766,8 @@ module objetivo_3
             rg2 = rg2 / size(r,2)
 
             rg2_m=rg2_m + rg2
-
+            
+            !Guardamos en el archivo de salida el tiempo y el radio de giro promedio cada 50 pasos
             if (mod(i,50) == 0) write(181,*) (2*i-1)*h, rg2_m/(2*i)
 
             aux = f
