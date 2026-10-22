@@ -1063,903 +1063,386 @@ if False:
 
 
 
-# %% 
-# OBJETIVO 2 - COCIENTE DE OCUPACIONES EN FUNCIÓN DE LA FUERZA
 
-import numpy as np
-import matplotlib.pyplot as plt
-from pathlib import Path
+#Plots Claudia Objetivo 2
+if False:
+    
+    # OBJETIVO 2 - COCIENTE DE OCUPACIONES EN FUNCIÓN DE LA FUERZA
 
-# Carpeta donde están los archivos de datos
-carpeta = Path("/Users/juansazperez/Documents/A_5-Molecular_dynamics/Py/plots/OBJETIVO_2/Fracc_ocup(F)")
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from pathlib import Path
 
-# Archivos y parámetros de las tres simulaciones
-simulaciones = [
-    ("fracc_p2(F)_1.txt", 0.5, 0.4),
-    ("fracc_p2(F)_2.txt", 0.5, 1.0),
-    ("fracc_p2(F)_3.txt", 1.0, 0.4),
-]
+    # Carpeta donde están los archivos de datos
+    carpeta = Path("/Users/juansazperez/Documents/A_5-Molecular_dynamics/Py/plots/OBJETIVO_2/Fracc_ocup(F)")
 
-for nombre_archivo, A, eta in simulaciones:
+    # Archivos y parámetros de las tres simulaciones
+    simulaciones = [
+        ("fracc_p2(F)_1.txt", 0.5, 0.4),
+        ("fracc_p2(F)_2.txt", 0.5, 1.0),
+        ("fracc_p2(F)_3.txt", 1.0, 0.4),
+    ]
 
-    # Leer datos: primera columna F, segunda P+
-    datos = np.loadtxt(carpeta / nombre_archivo, comments="#")
+    for nombre_archivo, A, eta in simulaciones:
 
-    F = datos[:, 0]
-    P = datos[:, 1]
+        # Leer datos: primera columna F, segunda P+
+        datos = np.loadtxt(carpeta / nombre_archivo, comments="#")
 
-    # Calcular cociente de ocupaciones
-    # Evitamos dividir entre cero cuando P = 1
-    R = np.divide(
-        P,
-        1.0 - P,
-        out=np.full_like(P, np.nan),
-        where=(P < 1.0)
+        F = datos[:, 0]
+        P = datos[:, 1]
+
+        # Calcular cociente de ocupaciones
+        # Evitamos dividir entre cero cuando P = 1
+        R = np.divide(
+            P,
+            1.0 - P,
+            out=np.full_like(P, np.nan),
+            where=(P < 1.0)
+        )
+
+        # Crear una figura independiente
+        plt.figure(figsize=(8, 5))
+
+        plt.plot(F, R, "o-", markersize=4)
+
+        plt.xlabel("Fuerza F")
+        plt.yscale("log")
+        plt.ylabel(r"Cociente de ocupaciones $n_+/n_-$")
+        plt.title(
+        "Objetivo 2: Cociente de ocupaciones frente a la fuerza\n"
+        "Representación en escala semilogarítmica"
+        )
+
+        plt.grid(alpha=0.3)
+        plt.tight_layout()
+
+        # Guardar en la misma carpeta
+        salida = carpeta / f"Cociente_ocup_A{A}_eta{eta}.png"
+
+        plt.savefig(salida, dpi=300, bbox_inches="tight")
+
+        plt.show()
+        plt.close()
+
+    # ============================================================
+    # OBJETIVO 2 - TIEMPO MEDIO DE ESTANCIA FRENTE A ETA, calculo de los tiempos medios de estancia
+    # ============================================================
+
+    import numpy as np
+    from pathlib import Path
+
+
+    carpeta = Path("/Users/juansazperez/Documents/A_5-Molecular_dynamics/Py/plots/OBJETIVO_2/Tiempos_medios_eta")
+    print("¿Existe la carpeta?", carpeta.exists())
+
+    for archivo in carpeta.glob("*.txt"):
+        print(archivo.name)
+    A = 0.5
+    etas = [0.1, 0.4, 0.7, 1.0]
+
+    for eta in etas:
+
+        nombre1 = f"estancia_pozo1_A{A:.2f}_eta{eta:.2f}.txt"
+        nombre2 = f"estancia_pozo2_A{A:.2f}_eta{eta:.2f}.txt"
+
+        est1 = np.loadtxt(carpeta / nombre1, ndmin=1)
+        est2 = np.loadtxt(carpeta / nombre2, ndmin=1)
+
+        print(f"\nA = {A}, eta = {eta}")
+        print(f"Pozo 1: {len(est1)} estancias, media = {np.mean(est1):.4f}")
+        print(f"Pozo 2: {len(est2)} estancias, media = {np.mean(est2):.4f}")
+
+    # ============================================================
+    # OBJETIVO 2 - TIEMPO MEDIO DE ESTANCIA FRENTE A ETA, representacion grafica de los tiempos medios de estancia
+    # ============================================================
+
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from pathlib import Path
+
+    # Carpeta con los archivos de las simulaciones
+    carpeta = Path(
+        "/Users/juansazperez/Documents/A_5-Molecular_dynamics/"
+        "Py/plots/OBJETIVO_2/Tiempos_medios_eta/A2.0"
     )
 
-    # Crear una figura independiente
-    plt.figure(figsize=(8, 5))
+    # Parametros
+    A = 2.0
+    etas = [0.1, 0.4, 0.7, 1.0]
 
-    plt.plot(F, R, "o-", markersize=4)
-
-    plt.xlabel("Fuerza F")
-    plt.yscale("log")
-    plt.ylabel(r"Cociente de ocupaciones $n_+/n_-$")
-    plt.title(
-    "Objetivo 2: Cociente de ocupaciones frente a la fuerza\n"
-    "Representación en escala semilogarítmica"
-    )
-
-    plt.grid(alpha=0.3)
-    plt.tight_layout()
-
-    # Guardar en la misma carpeta
-    salida = carpeta / f"Cociente_ocup_A{A}_eta{eta}.png"
-
-    plt.savefig(salida, dpi=300, bbox_inches="tight")
-
-    plt.show()
-    plt.close()
-
-
-# %%
-# ============================================================
-# OBJETIVO 2 - TIEMPO MEDIO DE ESTANCIA FRENTE A ETA, calculo de los tiempos medios de estancia
-# ============================================================
-
-import numpy as np
-from pathlib import Path
-
-
-carpeta = Path("/Users/juansazperez/Documents/A_5-Molecular_dynamics/Py/plots/OBJETIVO_2/Tiempos_medios_eta")
-print("¿Existe la carpeta?", carpeta.exists())
-
-for archivo in carpeta.glob("*.txt"):
-    print(archivo.name)
-A = 0.5
-etas = [0.1, 0.4, 0.7, 1.0]
-
-for eta in etas:
-
-    nombre1 = f"estancia_pozo1_A{A:.2f}_eta{eta:.2f}.txt"
-    nombre2 = f"estancia_pozo2_A{A:.2f}_eta{eta:.2f}.txt"
-
-    est1 = np.loadtxt(carpeta / nombre1, ndmin=1)
-    est2 = np.loadtxt(carpeta / nombre2, ndmin=1)
-
-    print(f"\nA = {A}, eta = {eta}")
-    print(f"Pozo 1: {len(est1)} estancias, media = {np.mean(est1):.4f}")
-    print(f"Pozo 2: {len(est2)} estancias, media = {np.mean(est2):.4f}")
-
-
-
-# %%
-# ============================================================
-# OBJETIVO 2 - TIEMPO MEDIO DE ESTANCIA FRENTE A ETA, representacion grafica de los tiempos medios de estancia
-# ============================================================
-
-import numpy as np
-import matplotlib.pyplot as plt
-from pathlib import Path
-
-# Carpeta con los archivos de las simulaciones
-carpeta = Path(
-    "/Users/juansazperez/Documents/A_5-Molecular_dynamics/"
-    "Py/plots/OBJETIVO_2/Tiempos_medios_eta/A2.0"
-)
-
-# Parametros
-A = 2.0
-etas = [0.1, 0.4, 0.7, 1.0]
-
-medias1 = []
-medias2 = []
-
-for eta in etas:
-
-    archivo1 = carpeta / f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
-    archivo2 = carpeta / f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
-
-    est1 = np.loadtxt(archivo1, ndmin=1)
-    est2 = np.loadtxt(archivo2, ndmin=1)
-
-    medias1.append(np.mean(est1))
-    medias2.append(np.mean(est2))
-
-# Representacion grafica
-plt.figure(figsize=(8, 5))
-
-plt.plot(etas, medias1, "o-", label="Pozo 1")
-plt.plot(etas, medias2, "s-", label="Pozo 2")
-
-plt.xlabel(r"Coeficiente de amortiguamiento $\eta$")
-plt.ylabel(r"Tiempo medio de estancia $\langle \tau \rangle$")
-
-plt.title(
-    "Objetivo 2: Tiempo medio de estancia frente al amortiguamiento"
-)
-
-plt.legend(title=rf"$A={A}$, $k_BT=0.2$")
-plt.grid(alpha=0.3)
-plt.tight_layout()
-
-# Guardar grafica
-salida = carpeta / f"Tiempo_medio_estancia_A{A}.png"
-
-plt.savefig(salida, dpi=300, bbox_inches="tight")
-plt.show()
-plt.close()
-
-
-
-# %%
-# ============================================================
-# OBJETIVO 2 - ANALISIS ESTADISTICO DE TIEMPOS DE ESTANCIA
-# ============================================================
-
-import numpy as np
-import pandas as pd
-from pathlib import Path
-
-# Carpeta principal de nuestros datos
-base = Path(
-    "/Users/juansazperez/Documents/A_5-Molecular_dynamics/"
-    "Py/plots/OBJETIVO_2/Tiempos_medios_eta"
-)
-
-# Parametros simulados
-valores_A = [0.5, 1.0, 2.0]
-etas = [0.1, 0.4, 0.7, 1.0]
-
-resultados = []
-
-for A in valores_A:
-
-    carpeta = base / f"A{A:.1f}"
+    medias1 = []
+    medias2 = []
 
     for eta in etas:
 
         archivo1 = carpeta / f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
         archivo2 = carpeta / f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
 
-        # Leer tiempos de estancia
         est1 = np.loadtxt(archivo1, ndmin=1)
         est2 = np.loadtxt(archivo2, ndmin=1)
 
-        # Numero de estancias
-        N1 = len(est1)
-        N2 = len(est2)
+        medias1.append(np.mean(est1))
+        medias2.append(np.mean(est2))
 
-        # Tiempos medios
-        media1 = np.mean(est1) if N1 > 0 else np.nan
-        media2 = np.mean(est2) if N2 > 0 else np.nan
+    # Representacion grafica
+    plt.figure(figsize=(8, 5))
 
-        # Ambos pozos
-        todas = np.concatenate((est1, est2))
-        Ntotal = len(todas)
-        media_total = np.mean(todas) if Ntotal > 0 else np.nan
+    plt.plot(etas, medias1, "o-", label="Pozo 1")
+    plt.plot(etas, medias2, "s-", label="Pozo 2")
 
-        resultados.append({
-            "A": A,
-            "eta": eta,
-            "N_pozo1": N1,
-            "N_pozo2": N2,
-            "N_total": Ntotal,
-            "Media_pozo1": media1,
-            "Media_pozo2": media2,
-            "Media_total": media_total
-        })
+    plt.xlabel(r"Coeficiente de amortiguamiento $\eta$")
+    plt.ylabel(r"Tiempo medio de estancia $\langle \tau \rangle$")
 
-# Crear tabla
-tabla = pd.DataFrame(resultados)
-
-# Mostrar resultados
-print(tabla.round(3).to_string(index=False))
-
-# Guardar tabla en CSV
-salida = base / "Resumen_tiempos_estancia.csv"
-tabla.to_csv(salida, index=False)
-
-print("\nTabla guardada en:", salida)
-
-
-
-
-
-
-# %%
-# ============================================================
-# OBJETIVO 2 - AJUSTES EXPONENCIALES DE TIEMPOS DE ESTANCIA
-# A = 1.0, distintos valores de eta
-# ============================================================
-
-import numpy as np
-import matplotlib.pyplot as plt
-from pathlib import Path
-
-base = Path.home() / "Documents/A_5-Molecular_dynamics"
-
-A = 1.0
-
-# Valores de eta y cortes elegidos
-cortes_por_eta = {
-    0.1: 50.0,
-    0.4: 50.0,
-    0.7: 50.0,
-    1.0: 50.0
-}
-
-
-carpeta_datos = (
-    base / "Py/plots/OBJETIVO_2/Tiempos_medios_eta/A1.0"
-)
-
-carpeta_salida = (
-    base / "Py/plots/OBJETIVO_2/Distr_testancia/amortiguado/A1.0"
-)
-carpeta_salida.mkdir(parents=True, exist_ok=True)
-
-for eta, tau_min in cortes_por_eta.items():
-
-    archivo1 = carpeta_datos / f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
-    archivo2 = carpeta_datos / f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
-
-    est1 = np.loadtxt(archivo1, ndmin=1)
-    est2 = np.loadtxt(archivo2, ndmin=1)
-
-    fig, axs = plt.subplots(1, 2, figsize=(13, 5))
-
-    for ax, tiempos, nombre in zip(
-        axs, [est1, est2], ["Pozo 1", "Pozo 2"]
-    ):
-
-        # Histograma normalizado
-        densidad, bordes = np.histogram(
-            tiempos, bins=50, density=True
-        )
-
-        ax.stairs(
-            densidad, bordes,
-            fill=True,
-            alpha=0.4,
-            label="Distribución simulada"
-        )
-
-        # Seleccion de la cola
-        cola = tiempos[tiempos >= tau_min]
-
-        N_total = len(tiempos)
-        N_cola = len(cola)
-
-        if N_cola < 2:
-            print(f"Datos insuficientes: A={A}, eta={eta}, {nombre}")
-            continue
-
-        # Estimacion de maxima verosimilitud
-        k = 1.0 / np.mean(cola - tau_min)
-        fraccion_cola = N_cola / N_total
-
-        # Curva exponencial ajustada
-        x_ajuste = np.linspace(
-            tau_min, np.max(tiempos), 500
-        )
-
-        y_ajuste = (
-            fraccion_cola * k
-            * np.exp(-k * (x_ajuste - tau_min))
-        )
-
-        # Expresar como C exp(-k*tau)
-        C = fraccion_cola * k * np.exp(k * tau_min)
-
-        exponente = int(np.floor(np.log10(C)))
-        coeficiente = C / 10**exponente
-
-        ecuacion = (
-            rf"$p(\tau)={coeficiente:.3f}\times10^{{{exponente}}}"
-            rf"e^{{-{k:.4f}\tau}}$"
-        )
-
-        ax.plot(
-            x_ajuste, y_ajuste, "--",
-            linewidth=2,
-            label=ecuacion
-        )
-
-        # Indicar corte
-        ax.axvline(
-            tau_min,
-            color="gray",
-            linestyle=":",
-            linewidth=1.2,
-            label=rf"$\tau_{{\min}}={tau_min:g}$"
-        )
-
-        # Escala semilogaritmica
-        ax.set_yscale("log")
-
-        ax.set_xlabel(r"Tiempo de estancia $\tau$")
-        ax.set_ylabel(r"Densidad de probabilidad $p(\tau)$")
-        ax.set_title(nombre)
-        ax.grid(alpha=0.3, which="both")
-        ax.legend(fontsize=9)
-
-        print(
-            f"A={A}, eta={eta}, {nombre}: "
-            f"N_cola={N_cola}, k={k:.5f}, "
-            f"1/k={1/k:.2f}"
-        )
-
-    fig.suptitle(
-        "Distribución de tiempos de estancia y ajuste de la cola exponencial\n"
-        rf"Escala semilogarítmica ($A={A}$, $\eta={eta}$)",
-        fontsize=14
+    plt.title(
+        "Objetivo 2: Tiempo medio de estancia frente al amortiguamiento"
     )
 
+    plt.legend(title=rf"$A={A}$, $k_BT=0.2$")
+    plt.grid(alpha=0.3)
     plt.tight_layout()
 
-    salida = carpeta_salida / f"Ajuste_cola_A{A}_eta{eta}.png"
+    # Guardar grafica
+    salida = carpeta / f"Tiempo_medio_estancia_A{A}.png"
 
     plt.savefig(salida, dpi=300, bbox_inches="tight")
     plt.show()
     plt.close()
 
-
-
-# %%
-# ============================================================
-# OBJETIVO 2 - ESTABILIDAD DEL AJUSTE EXPONENCIAL
-# A = 0.5, distintos valores de eta
-# ============================================================
-
-import numpy as np
-import matplotlib.pyplot as plt
-from pathlib import Path
-import pandas as pd
-
-resultados = []
-
-base = Path.home() / "Documents/A_5-Molecular_dynamics"
-
-# Parámetros
-A = 0.5
-etas = [0.01, 0.04]
-cortes = [0, 10, 20, 30, 50, 80]
-
-
-# Carpeta de datos
-carpeta = base / "Py/plots/OBJETIVO_2/Tiempos_medios_eta/A0.5"
-
-# Figura: una fila por eta y dos columnas por pozo
-fig, axs = plt.subplots(2, 2, figsize=(12, 9), sharex=True)
-
-for i, eta in enumerate(etas):
-
-    archivo1 = carpeta / f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
-    archivo2 = carpeta / f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
-
-    est1 = np.loadtxt(archivo1, ndmin=1)
-    est2 = np.loadtxt(archivo2, ndmin=1)
-
-    for j, tiempos in enumerate([est1, est2]):
-
-        tasas = []
-        cantidades = []
-
-        print(f"\nA={A}, eta={eta}, pozo {j+1}")
-        print("Corte     N datos         k         1/k")
-
-        for corte in cortes:
-
-            cola = tiempos[tiempos >= corte]
-            N = len(cola)
-
-            if N >= 2 and np.mean(cola - corte) > 0:
-                k = 1.0 / np.mean(cola - corte)
-                tau_car = 1.0 / k
-            else:
-                k = np.nan
-                tau_car = np.nan
-
-            tasas.append(k)
-            cantidades.append(N)
-            resultados.append({
-                "A": A,
-                "eta": eta,
-                "Pozo": j + 1,
-                "tau_min": corte,
-                "N_cola": N,
-                "k": k,
-                "Tiempo_caracteristico": tau_car
-            })
-
-            print(f"{corte:5.0f} {N:10d} {k:11.5f} {tau_car:11.3f}")
-
-        ax = axs[i, j]
-
-        ax.plot(cortes, tasas, "o-")
-
-        ax.set_title(rf"Pozo {j+1}, $\eta={eta}$")
-        ax.set_xlabel(r"Tiempo mínimo $\tau_{\min}$")
-        ax.set_ylabel(r"Tasa de decaimiento $k$")
-
-        # Mostrar todos los valores del eje X
-        ax.set_xticks(cortes)
-        ax.tick_params(axis="x", labelbottom=True)
-
-        ax.grid(alpha=0.3)
-
-        for corte, k, N in zip(cortes, tasas, cantidades):
-            if np.isfinite(k):
-                ax.annotate(
-                    f"N={N}",
-                    (corte, k),
-                    xytext=(0, 8),
-                    textcoords="offset points",
-                    ha="center",
-                    fontsize=8
-                )
-
-fig.suptitle(
-    rf"Estabilidad de la tasa exponencial ($A={A}$)",
-    fontsize=15
-)
-
-# Carpeta de salida
-salida = base / "Py/plots/OBJETIVO_2/Distr_testancia/amortiguado/A0.5/Analisis_cola"
-salida.mkdir(parents=True, exist_ok=True)
-
-plt.tight_layout()
-
-plt.savefig(
-    salida / "Estabilidad_k_A0.5.png",
-    dpi=300,
-    bbox_inches="tight"
-)
-
-tabla = pd.DataFrame(resultados)
-
-tabla.to_csv(
-    salida / "Estabilidad_k_A0.5.csv",
-    index=False
-)
-plt.show()
-plt.close()
-
-
-
-# %%
-# ============================================================
-# OBJETIVO 2 - ESTABILIDAD DEL AJUSTE EXPONENCIAL
-# A = 0.5, distintos valores de eta
-# ============================================================
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from pathlib import Path
-
-# Directorio principal
-base = Path.home() / "Documents/A_5-Molecular_dynamics"
-
-# Parametros
-A = 0.5
-etas = [0.01, 0.04, 3.5, 5.0]
-cortes = [0, 20, 50, 100, 150, 200, 300]
-
-# Carpetas
-carpeta_datos = (
-    base / "Py/plots/OBJETIVO_2/Tiempos_medios_eta/A0.5"
-)
-
-carpeta_salida = (
-    base / "Py/plots/OBJETIVO_2/Distr_testancia/subamortiguado/A0.5/Analisis_cola"
-)
-
-carpeta_salida.mkdir(parents=True, exist_ok=True)
-
-# Lista donde guardaremos los resultados
-resultados = []
-
-# Una fila por eta y dos columnas por pozo
-fig, axs = plt.subplots(4, 2, figsize=(13, 15), sharex=True)
-
-for i, eta in enumerate(etas):
-
-    archivo1 = carpeta_datos / f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
-    archivo2 = carpeta_datos / f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
-
-    est1 = np.loadtxt(archivo1, ndmin=1)
-    est2 = np.loadtxt(archivo2, ndmin=1)
-
-    for j, tiempos in enumerate([est1, est2]):
-
-        tasas = []
-        cantidades = []
-
-        print(f"\nA={A}, eta={eta}, pozo {j+1}")
-        print("Corte     N datos        k         1/k")
-
-        for corte in cortes:
-
-            cola = tiempos[tiempos >= corte]
-            N = len(cola)
-
-            if N >= 2 and np.mean(cola - corte) > 0:
-                k = 1.0 / np.mean(cola - corte)
-                tau_car = 1.0 / k
-            else:
-                k = np.nan
-                tau_car = np.nan
-
-            tasas.append(k)
-            cantidades.append(N)
-
-            print(
-                f"{corte:5.0f} {N:10d} "
-                f"{k:10.5f} {tau_car:11.3f}"
-            )
-
-            # Guardar resultados en tabla
-            resultados.append({
-                "A": A,
-                "eta": eta,
-                "Pozo": j + 1,
-                "tau_min": corte,
-                "N_cola": N,
-                "k": k,
-                "Tiempo_caracteristico": tau_car
-            })
-
-        # Representacion
-        ax = axs[i, j]
-
-        ax.plot(cortes, tasas, "o-")
-
-        ax.set_title(rf"Pozo {j+1}, $\eta={eta}$")
-        ax.set_xlabel(r"Tiempo mínimo $\tau_{{\min}}$")
-        ax.set_ylabel(r"Tasa de decaimiento $k$")
-
-        # Numeracion en todos los ejes X
-        ax.set_xticks(cortes)
-        ax.tick_params(axis="x", labelbottom=True)
-
-        ax.grid(alpha=0.3)
-
-        for corte, k, N in zip(cortes, tasas, cantidades):
-            if np.isfinite(k):
-                ax.annotate(
-                    f"N={N}",
-                    (corte, k),
-                    xytext=(0, 8),
-                    textcoords="offset points",
-                    ha="center",
-                    fontsize=8
-                )
-
-fig.suptitle(
-    rf"Estabilidad de la tasa exponencial ($A={A}$)",
-    fontsize=15
-)
-
-plt.tight_layout()
-
-# Guardar grafica
-salida_png = carpeta_salida / "Estabilidad_k_A0.5_subamortiguado.png"
-
-plt.savefig(
-    salida_png,
-    dpi=300,
-    bbox_inches="tight"
-)
-
-plt.show()
-plt.close()
-
-# Guardar tabla de resultados
-tabla = pd.DataFrame(resultados)
-
-salida_csv = carpeta_salida / "Estabilidad_k_A0.5_subamortiguado.csv"
-
-tabla.to_csv(salida_csv, index=False)
-
-print("\nGrafica guardada en:", salida_png)
-print("Tabla guardada en:", salida_csv)
-
-
-
-# %%
-# ============================================================
-# OBJETIVO 2 - DISTRIBUCIÓN DE TIEMPOS DE ESTANCIA
-# Y AJUSTE DE LA COLA EXPONENCIAL
-# SUBAMORTIGUADO - A = 0.5
-# ============================================================
-
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-from pathlib import Path
-
-# ------------------------------------------------------------
-# RUTA BASE
-# ------------------------------------------------------------
-base = Path.home() / "Documents/A_5-Molecular_dynamics"
-
-# ------------------------------------------------------------
-# PARÁMETROS
-# ------------------------------------------------------------
-A = 0.5
-
-# Solo los valores subamortiguados
-etas = [3.5, 5.0]
-
-# Cortes elegidos a partir del análisis previo de estabilidad
-cortes_por_eta = {
-    3.5: 50.0,
-    5.0: 50.0
-}
-
-# Número de bins del histograma
-bins = 50
-
-# ------------------------------------------------------------
-# CARPETAS
-# ------------------------------------------------------------
-# OJO: aquí van los txt con los tiempos de estancia
-carpeta_datos = base / "Py/plots/OBJETIVO_2/Tiempos_medios_eta/A0.5"
-
-# Aquí se guardarán las gráficas y la tabla resumen
-carpeta_salida = (
-    base / "Py/plots/OBJETIVO_2/Distr_testancia/sobreamortiguado/A0.5"
-)
-carpeta_salida.mkdir(parents=True, exist_ok=True)
-
-# Si quieres, puedes guardar el resumen en una subcarpeta aparte
-carpeta_resumen = carpeta_salida / "Analisis_cola"
-carpeta_resumen.mkdir(parents=True, exist_ok=True)
-
-# ------------------------------------------------------------
-# LISTA PARA GUARDAR RESULTADOS
-# ------------------------------------------------------------
-resultados = []
-
-# ------------------------------------------------------------
-# BUCLE SOBRE ETAS
-# ------------------------------------------------------------
-for eta in etas:
-
-    tau_min = cortes_por_eta[eta]
-
-    # Nombres de archivos
-    archivo1 = carpeta_datos / f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
-    archivo2 = carpeta_datos / f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
-
-    # Cargar datos
-    est1 = np.loadtxt(archivo1, ndmin=1)
-    est2 = np.loadtxt(archivo2, ndmin=1)
-
-    # Figura con dos subplots: pozo 1 y pozo 2
-    fig, axs = plt.subplots(1, 2, figsize=(14, 6))
-
-    for j, tiempos in enumerate([est1, est2]):
-
-        ax = axs[j]
-
-        # ----------------------------------------------------
-        # HISTOGRAMA
-        # ----------------------------------------------------
-        densidad, bordes, _ = ax.hist(
-            tiempos,
-            bins=bins,
-            density=True,
-            alpha=0.35,
-            label="Distribución simulada"
-        )
-
-        # ----------------------------------------------------
-        # AJUSTE DE LA COLA
-        # ----------------------------------------------------
-        cola = tiempos[tiempos >= tau_min]
-        N_total = len(tiempos)
-        N_cola = len(cola)
-
-        if N_cola < 2:
-            print(f"No hay suficientes datos en la cola para eta={eta}, pozo {j+1}")
-            continue
-
-        # Ajuste exponencial de la cola:
-        # p(tau | tau >= tau_min) ~ k exp[-k (tau - tau_min)]
-        # Entonces, para la distribución total:
-        # p(tau) ~ C exp(-k tau), con
-        # C = (N_cola/N_total) * k * exp(k*tau_min)
-        k = 1.0 / np.mean(cola - tau_min)
-        tau_car = 1.0 / k
-        frac_cola = N_cola / N_total
-        C = frac_cola * k * np.exp(k * tau_min)
-
-        # Rango para dibujar la recta
-        x_fit = np.linspace(tau_min, np.max(tiempos), 400)
-        y_fit = C * np.exp(-k * x_fit)
-
-        ax.plot(
-            x_fit,
-            y_fit,
-            "--",
-            linewidth=2.5,
-            label=rf"$p(\tau) = {C:.3e}\,e^{{-{k:.4f}\tau}}$"
-        )
-
-        # Línea vertical indicando el corte
-        ax.axvline(
-            tau_min,
-            linestyle=":",
-            linewidth=1.8,
-            color="gray",
-            label=rf"$\tau_{{\min}} = {tau_min:.0f}$"
-        )
-
-        # ----------------------------------------------------
-        # ESTÉTICA
-        # ----------------------------------------------------
-        ax.set_yscale("log")
-        ax.set_title(f"Pozo {j+1}", fontsize=18)
-        ax.set_xlabel(r"Tiempo de estancia $\tau$", fontsize=15)
-        ax.set_ylabel(r"Densidad de probabilidad $p(\tau)$", fontsize=15)
-        ax.grid(alpha=0.3, which="both")
-        ax.legend(fontsize=12)
-
-        # ----------------------------------------------------
-        # GUARDAR RESULTADOS EN TABLA
-        # ----------------------------------------------------
-        resultados.append({
-            "A": A,
-            "eta": eta,
-            "Pozo": j + 1,
-            "tau_min": tau_min,
-            "N_total": N_total,
-            "N_cola": N_cola,
-            "fraccion_cola": frac_cola,
-            "k": k,
-            "Tiempo_caracteristico_1_sobre_k": tau_car,
-            "C_prefactor": C
-        })
-
-        # Imprimir por pantalla
-        print(f"\nA = {A}, eta = {eta}, pozo {j+1}")
-        print(f"N total = {N_total}")
-        print(f"N cola  = {N_cola}")
-        print(f"tau_min = {tau_min}")
-        print(f"k       = {k:.6f}")
-        print(f"1/k     = {tau_car:.3f}")
-        print(f"C       = {C:.6e}")
-
-    # --------------------------------------------------------
-    # TÍTULO GENERAL
-    # --------------------------------------------------------
-    fig.suptitle(
-        rf"Distribución de tiempos de estancia y ajuste de la cola exponencial"
-        "\n"
-        rf"Escala semilogarítmica ($A={A}$, $\eta={eta}$)",
-        fontsize=20
+    # ============================================================
+    # OBJETIVO 2 - ANALISIS ESTADISTICO DE TIEMPOS DE ESTANCIA
+    # ============================================================
+
+    import numpy as np
+    import pandas as pd
+    from pathlib import Path
+
+    # Carpeta principal de nuestros datos
+    base = Path(
+        "/Users/juansazperez/Documents/A_5-Molecular_dynamics/"
+        "Py/plots/OBJETIVO_2/Tiempos_medios_eta"
     )
 
-    plt.tight_layout()
-
-    # --------------------------------------------------------
-    # GUARDAR FIGURA
-    # --------------------------------------------------------
-    nombre_fig = carpeta_salida / f"Ajuste_cola_A{A:.1f}_eta{eta:.2f}.png"
-    plt.savefig(nombre_fig, dpi=300, bbox_inches="tight")
-
-    plt.show()
-    plt.close()
-
-    print(f"\nFigura guardada en: {nombre_fig}")
-
-# ------------------------------------------------------------
-# GUARDAR TABLA RESUMEN
-# ------------------------------------------------------------
-tabla = pd.DataFrame(resultados)
-
-salida_csv = carpeta_resumen / f"Resumen_ajustes_subamortiguado_A{A:.1f}.csv"
-tabla.to_csv(salida_csv, index=False)
-
-print("\nTabla resumen guardada en:")
-print(salida_csv)
-
-
-
-
-# %%
-# ============================================================
-# OBJETIVO 2 - ESTABILIDAD DEL AJUSTE EXPONENCIAL
-# A = 1.0 - SUBAMORTIGUADO Y SOBREAMORTIGUADO
-# ============================================================
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from pathlib import Path
-
-base = Path.home() / "Documents/A_5-Molecular_dynamics"
-
-A = 1.0
-
-cortes = [0, 20, 50, 100, 150, 200, 300, 500, 800]
-
-# Separar los dos grupos
-regimenes = {
-    "subamortiguado": [0.01, 0.04],
-    "sobreamortiguado": [3.5, 5.0]
-}
-
-# Carpeta donde están los TXT
-carpeta_datos = (
-    base / "Py/plots/OBJETIVO_2/Tiempos_medios_eta/A1.0"
-)
-
-for regimen, etas in regimenes.items():
-
-    # Carpeta de análisis
-    carpeta_salida = (
-        base / "Py/plots/OBJETIVO_2/Distr_testancia"
-        / regimen / "A1.0" / "Analisis_cola"
-    )
-
-    carpeta_salida.mkdir(parents=True, exist_ok=True)
-
-    nombre_png = (
-        carpeta_salida /
-        f"Estabilidad_k_{regimen}_A{A:.1f}.png"
-    )
-
-    nombre_csv = (
-        carpeta_salida /
-        f"Estabilidad_k_{regimen}_A{A:.1f}.csv"
-    )
-
-    # Evitar sobrescribir resultados anteriores
-    if nombre_png.exists() or nombre_csv.exists():
-        raise FileExistsError(
-            f"Ya existen resultados en {carpeta_salida}"
-        )
+    # Parametros simulados
+    valores_A = [0.5, 1.0, 2.0]
+    etas = [0.1, 0.4, 0.7, 1.0]
 
     resultados = []
 
-    # Dos filas (etas) y dos columnas (pozos)
-    fig, axs = plt.subplots(
-        2, 2, figsize=(13, 9), sharex=True
+    for A in valores_A:
+
+        carpeta = base / f"A{A:.1f}"
+
+        for eta in etas:
+
+            archivo1 = carpeta / f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
+            archivo2 = carpeta / f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
+
+            # Leer tiempos de estancia
+            est1 = np.loadtxt(archivo1, ndmin=1)
+            est2 = np.loadtxt(archivo2, ndmin=1)
+
+            # Numero de estancias
+            N1 = len(est1)
+            N2 = len(est2)
+
+            # Tiempos medios
+            media1 = np.mean(est1) if N1 > 0 else np.nan
+            media2 = np.mean(est2) if N2 > 0 else np.nan
+
+            # Ambos pozos
+            todas = np.concatenate((est1, est2))
+            Ntotal = len(todas)
+            media_total = np.mean(todas) if Ntotal > 0 else np.nan
+
+            resultados.append({
+                "A": A,
+                "eta": eta,
+                "N_pozo1": N1,
+                "N_pozo2": N2,
+                "N_total": Ntotal,
+                "Media_pozo1": media1,
+                "Media_pozo2": media2,
+                "Media_total": media_total
+            })
+
+    # Crear tabla
+    tabla = pd.DataFrame(resultados)
+
+    # Mostrar resultados
+    print(tabla.round(3).to_string(index=False))
+
+    # Guardar tabla en CSV
+    salida = base / "Resumen_tiempos_estancia.csv"
+    tabla.to_csv(salida, index=False)
+
+    print("\nTabla guardada en:", salida)
+
+    # ============================================================
+    # OBJETIVO 2 - AJUSTES EXPONENCIALES DE TIEMPOS DE ESTANCIA
+    # A = 1.0, distintos valores de eta
+    # ============================================================
+
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from pathlib import Path
+
+    base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+    A = 1.0
+
+    # Valores de eta y cortes elegidos
+    cortes_por_eta = {
+        0.1: 50.0,
+        0.4: 50.0,
+        0.7: 50.0,
+        1.0: 50.0
+    }
+
+
+    carpeta_datos = (
+        base / "Py/plots/OBJETIVO_2/Tiempos_medios_eta/A1.0"
     )
+
+    carpeta_salida = (
+        base / "Py/plots/OBJETIVO_2/Distr_testancia/amortiguado/A1.0"
+    )
+    carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+    for eta, tau_min in cortes_por_eta.items():
+
+        archivo1 = carpeta_datos / f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
+        archivo2 = carpeta_datos / f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
+
+        est1 = np.loadtxt(archivo1, ndmin=1)
+        est2 = np.loadtxt(archivo2, ndmin=1)
+
+        fig, axs = plt.subplots(1, 2, figsize=(13, 5))
+
+        for ax, tiempos, nombre in zip(
+            axs, [est1, est2], ["Pozo 1", "Pozo 2"]
+        ):
+
+            # Histograma normalizado
+            densidad, bordes = np.histogram(
+                tiempos, bins=50, density=True
+            )
+
+            ax.stairs(
+                densidad, bordes,
+                fill=True,
+                alpha=0.4,
+                label="Distribución simulada"
+            )
+
+            # Seleccion de la cola
+            cola = tiempos[tiempos >= tau_min]
+
+            N_total = len(tiempos)
+            N_cola = len(cola)
+
+            if N_cola < 2:
+                print(f"Datos insuficientes: A={A}, eta={eta}, {nombre}")
+                continue
+
+            # Estimacion de maxima verosimilitud
+            k = 1.0 / np.mean(cola - tau_min)
+            fraccion_cola = N_cola / N_total
+
+            # Curva exponencial ajustada
+            x_ajuste = np.linspace(
+                tau_min, np.max(tiempos), 500
+            )
+
+            y_ajuste = (
+                fraccion_cola * k
+                * np.exp(-k * (x_ajuste - tau_min))
+            )
+
+            # Expresar como C exp(-k*tau)
+            C = fraccion_cola * k * np.exp(k * tau_min)
+
+            exponente = int(np.floor(np.log10(C)))
+            coeficiente = C / 10**exponente
+
+            ecuacion = (
+                rf"$p(\tau)={coeficiente:.3f}\times10^{{{exponente}}}"
+                rf"e^{{-{k:.4f}\tau}}$"
+            )
+
+            ax.plot(
+                x_ajuste, y_ajuste, "--",
+                linewidth=2,
+                label=ecuacion
+            )
+
+            # Indicar corte
+            ax.axvline(
+                tau_min,
+                color="gray",
+                linestyle=":",
+                linewidth=1.2,
+                label=rf"$\tau_{{\min}}={tau_min:g}$"
+            )
+
+            # Escala semilogaritmica
+            ax.set_yscale("log")
+
+            ax.set_xlabel(r"Tiempo de estancia $\tau$")
+            ax.set_ylabel(r"Densidad de probabilidad $p(\tau)$")
+            ax.set_title(nombre)
+            ax.grid(alpha=0.3, which="both")
+            ax.legend(fontsize=9)
+
+            print(
+                f"A={A}, eta={eta}, {nombre}: "
+                f"N_cola={N_cola}, k={k:.5f}, "
+                f"1/k={1/k:.2f}"
+            )
+
+        fig.suptitle(
+            "Distribución de tiempos de estancia y ajuste de la cola exponencial\n"
+            rf"Escala semilogarítmica ($A={A}$, $\eta={eta}$)",
+            fontsize=14
+        )
+
+        plt.tight_layout()
+
+        salida = carpeta_salida / f"Ajuste_cola_A{A}_eta{eta}.png"
+
+        plt.savefig(salida, dpi=300, bbox_inches="tight")
+        plt.show()
+        plt.close()
+
+    # ============================================================
+    # OBJETIVO 2 - ESTABILIDAD DEL AJUSTE EXPONENCIAL
+    # A = 0.5, distintos valores de eta
+    # ============================================================
+
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from pathlib import Path
+    import pandas as pd
+
+    resultados = []
+
+    base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+    # Parámetros
+    A = 0.5
+    etas = [0.01, 0.04]
+    cortes = [0, 10, 20, 30, 50, 80]
+
+
+    # Carpeta de datos
+    carpeta = base / "Py/plots/OBJETIVO_2/Tiempos_medios_eta/A0.5"
+
+    # Figura: una fila por eta y dos columnas por pozo
+    fig, axs = plt.subplots(2, 2, figsize=(12, 9), sharex=True)
 
     for i, eta in enumerate(etas):
 
-        archivo1 = carpeta_datos / (
-            f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
-        )
-
-        archivo2 = carpeta_datos / (
-            f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
-        )
+        archivo1 = carpeta / f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
+        archivo2 = carpeta / f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
 
         est1 = np.loadtxt(archivo1, ndmin=1)
         est2 = np.loadtxt(archivo2, ndmin=1)
@@ -1970,7 +1453,135 @@ for regimen, etas in regimenes.items():
             cantidades = []
 
             print(f"\nA={A}, eta={eta}, pozo {j+1}")
-            print("Corte    N datos      k          1/k")
+            print("Corte     N datos         k         1/k")
+
+            for corte in cortes:
+
+                cola = tiempos[tiempos >= corte]
+                N = len(cola)
+
+                if N >= 2 and np.mean(cola - corte) > 0:
+                    k = 1.0 / np.mean(cola - corte)
+                    tau_car = 1.0 / k
+                else:
+                    k = np.nan
+                    tau_car = np.nan
+
+                tasas.append(k)
+                cantidades.append(N)
+                resultados.append({
+                    "A": A,
+                    "eta": eta,
+                    "Pozo": j + 1,
+                    "tau_min": corte,
+                    "N_cola": N,
+                    "k": k,
+                    "Tiempo_caracteristico": tau_car
+                })
+
+                print(f"{corte:5.0f} {N:10d} {k:11.5f} {tau_car:11.3f}")
+
+            ax = axs[i, j]
+
+            ax.plot(cortes, tasas, "o-")
+
+            ax.set_title(rf"Pozo {j+1}, $\eta={eta}$")
+            ax.set_xlabel(r"Tiempo mínimo $\tau_{\min}$")
+            ax.set_ylabel(r"Tasa de decaimiento $k$")
+
+            # Mostrar todos los valores del eje X
+            ax.set_xticks(cortes)
+            ax.tick_params(axis="x", labelbottom=True)
+
+            ax.grid(alpha=0.3)
+
+            for corte, k, N in zip(cortes, tasas, cantidades):
+                if np.isfinite(k):
+                    ax.annotate(
+                        f"N={N}",
+                        (corte, k),
+                        xytext=(0, 8),
+                        textcoords="offset points",
+                        ha="center",
+                        fontsize=8
+                    )
+
+    fig.suptitle(
+        rf"Estabilidad de la tasa exponencial ($A={A}$)",
+        fontsize=15
+    )
+
+    # Carpeta de salida
+    salida = base / "Py/plots/OBJETIVO_2/Distr_testancia/amortiguado/A0.5/Analisis_cola"
+    salida.mkdir(parents=True, exist_ok=True)
+
+    plt.tight_layout()
+
+    plt.savefig(
+        salida / "Estabilidad_k_A0.5.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    tabla = pd.DataFrame(resultados)
+
+    tabla.to_csv(
+        salida / "Estabilidad_k_A0.5.csv",
+        index=False
+    )
+    plt.show()
+    plt.close()
+
+    # ============================================================
+    # OBJETIVO 2 - ESTABILIDAD DEL AJUSTE EXPONENCIAL
+    # A = 0.5, distintos valores de eta
+    # ============================================================
+
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from pathlib import Path
+
+    # Directorio principal
+    base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+    # Parametros
+    A = 0.5
+    etas = [0.01, 0.04, 3.5, 5.0]
+    cortes = [0, 20, 50, 100, 150, 200, 300]
+
+    # Carpetas
+    carpeta_datos = (
+        base / "Py/plots/OBJETIVO_2/Tiempos_medios_eta/A0.5"
+    )
+
+    carpeta_salida = (
+        base / "Py/plots/OBJETIVO_2/Distr_testancia/subamortiguado/A0.5/Analisis_cola"
+    )
+
+    carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+    # Lista donde guardaremos los resultados
+    resultados = []
+
+    # Una fila por eta y dos columnas por pozo
+    fig, axs = plt.subplots(4, 2, figsize=(13, 15), sharex=True)
+
+    for i, eta in enumerate(etas):
+
+        archivo1 = carpeta_datos / f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
+        archivo2 = carpeta_datos / f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
+
+        est1 = np.loadtxt(archivo1, ndmin=1)
+        est2 = np.loadtxt(archivo2, ndmin=1)
+
+        for j, tiempos in enumerate([est1, est2]):
+
+            tasas = []
+            cantidades = []
+
+            print(f"\nA={A}, eta={eta}, pozo {j+1}")
+            print("Corte     N datos        k         1/k")
 
             for corte in cortes:
 
@@ -1987,6 +1598,12 @@ for regimen, etas in regimenes.items():
                 tasas.append(k)
                 cantidades.append(N)
 
+                print(
+                    f"{corte:5.0f} {N:10d} "
+                    f"{k:10.5f} {tau_car:11.3f}"
+                )
+
+                # Guardar resultados en tabla
                 resultados.append({
                     "A": A,
                     "eta": eta,
@@ -1997,31 +1614,22 @@ for regimen, etas in regimenes.items():
                     "Tiempo_caracteristico": tau_car
                 })
 
-                print(
-                    f"{corte:5.0f} {N:9d} "
-                    f"{k:10.6f} {tau_car:11.3f}"
-                )
-
-            # Gráfica de estabilidad
+            # Representacion
             ax = axs[i, j]
 
-            ax.plot(cortes, tasas, "o-", markersize=4)
+            ax.plot(cortes, tasas, "o-")
 
             ax.set_title(rf"Pozo {j+1}, $\eta={eta}$")
-            ax.set_xlabel(r"Tiempo mínimo $\tau_{\min}$")
+            ax.set_xlabel(r"Tiempo mínimo $\tau_{{\min}}$")
             ax.set_ylabel(r"Tasa de decaimiento $k$")
 
-            # Números del eje X en todos los paneles
+            # Numeracion en todos los ejes X
             ax.set_xticks(cortes)
-            ax.tick_params(
-                axis="x", labelbottom=True, labelrotation=35
-            )
+            ax.tick_params(axis="x", labelbottom=True)
 
             ax.grid(alpha=0.3)
 
-            for corte, k, N in zip(
-                cortes, tasas, cantidades
-            ):
+            for corte, k, N in zip(cortes, tasas, cantidades):
                 if np.isfinite(k):
                     ax.annotate(
                         f"N={N}",
@@ -2029,234 +1637,21 @@ for regimen, etas in regimenes.items():
                         xytext=(0, 8),
                         textcoords="offset points",
                         ha="center",
-                        fontsize=7
+                        fontsize=8
                     )
 
     fig.suptitle(
-        f"Estabilidad de la tasa exponencial\n"
-        rf"Régimen {regimen} ($A={A}$)",
+        rf"Estabilidad de la tasa exponencial ($A={A}$)",
         fontsize=15
     )
 
     plt.tight_layout()
 
-    # Guardar figura
+    # Guardar grafica
+    salida_png = carpeta_salida / "Estabilidad_k_A0.5_subamortiguado.png"
+
     plt.savefig(
-        nombre_png, dpi=300, bbox_inches="tight"
-    )
-
-    plt.show()
-    plt.close()
-
-    # Guardar CSV
-    tabla = pd.DataFrame(resultados)
-    tabla.to_csv(nombre_csv, index=False)
-
-    print(f"\nGráfica guardada: {nombre_png}")
-    print(f"Tabla guardada: {nombre_csv}")
-
-
-
-
-# %%
-# ============================================================
-# OBJETIVO 2 - DISTRIBUCION DE TIEMPOS DE ESTANCIA
-# Y AJUSTE DE LA COLA EXPONENCIAL
-# SUBAMORTIGUADO - A = 1.0
-# ============================================================
-
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-from pathlib import Path
-
-# ------------------------------------------------------------
-# PARAMETROS
-# ------------------------------------------------------------
-
-base = Path.home() / "Documents/A_5-Molecular_dynamics"
-
-A = 1.0
-etas = [0.01, 0.04]
-
-# Cortes obtenidos del analisis de estabilidad
-cortes_por_eta = {
-    0.01: 300.0,
-    0.04: 150.0
-}
-
-bins = 50
-
-# ------------------------------------------------------------
-# CARPETAS
-# ------------------------------------------------------------
-
-# Archivos TXT originales
-carpeta_datos = (
-    base / "Py/plots/OBJETIVO_2/Tiempos_medios_eta/A1.0"
-)
-
-# Graficas definitivas
-carpeta_salida = (
-    base / "Py/plots/OBJETIVO_2/Distr_testancia/subamortiguado/A1.0"
-)
-carpeta_salida.mkdir(parents=True, exist_ok=True)
-
-# Tabla resumen
-carpeta_resumen = carpeta_salida / "Analisis_cola"
-carpeta_resumen.mkdir(parents=True, exist_ok=True)
-
-# ------------------------------------------------------------
-# COMPROBAR QUE NO VAMOS A SOBRESCRIBIR ARCHIVOS
-# ------------------------------------------------------------
-
-archivos_salida = [
-    carpeta_salida /
-    f"Ajuste_cola_subamortiguado_A{A:.1f}_eta{eta:.2f}.png"
-    for eta in etas
-]
-
-archivo_csv = (
-    carpeta_resumen /
-    f"Resumen_ajustes_subamortiguado_A{A:.1f}.csv"
-)
-
-for archivo in archivos_salida + [archivo_csv]:
-    if archivo.exists():
-        raise FileExistsError(
-            f"El archivo ya existe y no se sobrescribira: {archivo}"
-        )
-
-# ------------------------------------------------------------
-# AJUSTES EXPONENCIALES
-# ------------------------------------------------------------
-
-resultados = []
-
-for eta, nombre_fig in zip(etas, archivos_salida):
-
-    tau_min = cortes_por_eta[eta]
-
-    archivo1 = carpeta_datos / (
-        f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
-    )
-
-    archivo2 = carpeta_datos / (
-        f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
-    )
-
-    est1 = np.loadtxt(archivo1, ndmin=1)
-    est2 = np.loadtxt(archivo2, ndmin=1)
-
-    fig, axs = plt.subplots(1, 2, figsize=(14, 6))
-
-    for j, tiempos in enumerate([est1, est2]):
-
-        ax = axs[j]
-
-        # Histograma normalizado de todas las estancias
-        ax.hist(
-            tiempos,
-            bins=bins,
-            density=True,
-            alpha=0.35,
-            label="Distribucion simulada"
-        )
-
-        # Seleccionar la cola exponencial
-        cola = tiempos[tiempos >= tau_min]
-
-        N_total = len(tiempos)
-        N_cola = len(cola)
-
-        if N_cola < 2:
-            raise ValueError(
-                f"Datos insuficientes: eta={eta}, pozo {j+1}"
-            )
-
-        # Estimacion de maxima verosimilitud
-        k = 1.0 / np.mean(cola - tau_min)
-
-        tau_car = 1.0 / k
-
-        fraccion_cola = N_cola / N_total
-
-        # Modelo p(tau) = C exp(-k*tau)
-        C = fraccion_cola * k * np.exp(k * tau_min)
-
-        x_fit = np.linspace(
-            tau_min, np.max(tiempos), 500
-        )
-
-        y_fit = C * np.exp(-k * x_fit)
-
-        # Formato cientifico para la ecuacion
-        exponente = int(np.floor(np.log10(C)))
-        coeficiente = C / 10**exponente
-
-        ecuacion = (
-            rf"$p(\tau)={coeficiente:.3f}\times10^{{{exponente}}}"
-            rf"e^{{-{k:.4f}\tau}}$"
-        )
-
-        # Dibujar ajuste
-        ax.plot(
-            x_fit, y_fit, "--",
-            linewidth=2.5,
-            label=ecuacion
-        )
-
-        # Indicar el comienzo de la cola
-        ax.axvline(
-            tau_min,
-            linestyle=":",
-            linewidth=1.5,
-            color="gray",
-            label=rf"$\tau_{{\min}}={tau_min:g}$"
-        )
-
-        # Representacion semilogaritmica
-        ax.set_yscale("log")
-
-        ax.set_title(f"Pozo {j+1}", fontsize=16)
-        ax.set_xlabel(r"Tiempo de estancia $\tau$")
-        ax.set_ylabel(r"Densidad de probabilidad $p(\tau)$")
-
-        ax.grid(alpha=0.3, which="both")
-        ax.legend(fontsize=10)
-
-        # Guardar resultados numericos
-        resultados.append({
-            "A": A,
-            "eta": eta,
-            "Pozo": j + 1,
-            "tau_min": tau_min,
-            "N_total": N_total,
-            "N_cola": N_cola,
-            "fraccion_cola": fraccion_cola,
-            "k": k,
-            "Tiempo_caracteristico": tau_car,
-            "C": C
-        })
-
-        print(f"\nA={A}, eta={eta}, pozo {j+1}")
-        print(f"N total = {N_total}")
-        print(f"N cola = {N_cola}")
-        print(f"k = {k:.6f}")
-        print(f"1/k = {tau_car:.3f}")
-
-    # Titulo general
-    fig.suptitle(
-        "Distribucion de tiempos de estancia y ajuste de la cola exponencial\n"
-        rf"Escala semilogaritmica ($A={A}$, $\eta={eta}$)",
-        fontsize=16
-    )
-
-    plt.tight_layout()
-
-    # Guardar sin sobrescribir archivos antiguos
-    plt.savefig(
-        nombre_fig,
+        salida_png,
         dpi=300,
         bbox_inches="tight"
     )
@@ -2264,20 +1659,593 @@ for eta, nombre_fig in zip(etas, archivos_salida):
     plt.show()
     plt.close()
 
-# ------------------------------------------------------------
-# GUARDAR TABLA RESUMEN
-# ------------------------------------------------------------
+    # Guardar tabla de resultados
+    tabla = pd.DataFrame(resultados)
 
-tabla = pd.DataFrame(resultados)
+    salida_csv = carpeta_salida / "Estabilidad_k_A0.5_subamortiguado.csv"
 
-tabla.to_csv(archivo_csv, index=False)
+    tabla.to_csv(salida_csv, index=False)
 
-print("\nTabla resumen guardada en:")
-print(archivo_csv)
+    print("\nGrafica guardada en:", salida_png)
+    print("Tabla guardada en:", salida_csv)
 
+    # ============================================================
+    # OBJETIVO 2 - DISTRIBUCIÓN DE TIEMPOS DE ESTANCIA
+    # Y AJUSTE DE LA COLA EXPONENCIAL
+    # SUBAMORTIGUADO - A = 0.5
+    # ============================================================
 
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    from pathlib import Path
 
+    # ------------------------------------------------------------
+    # RUTA BASE
+    # ------------------------------------------------------------
+    base = Path.home() / "Documents/A_5-Molecular_dynamics"
 
+    # ------------------------------------------------------------
+    # PARÁMETROS
+    # ------------------------------------------------------------
+    A = 0.5
+
+    # Solo los valores subamortiguados
+    etas = [3.5, 5.0]
+
+    # Cortes elegidos a partir del análisis previo de estabilidad
+    cortes_por_eta = {
+        3.5: 50.0,
+        5.0: 50.0
+    }
+
+    # Número de bins del histograma
+    bins = 50
+
+    # ------------------------------------------------------------
+    # CARPETAS
+    # ------------------------------------------------------------
+    # OJO: aquí van los txt con los tiempos de estancia
+    carpeta_datos = base / "Py/plots/OBJETIVO_2/Tiempos_medios_eta/A0.5"
+
+    # Aquí se guardarán las gráficas y la tabla resumen
+    carpeta_salida = (
+        base / "Py/plots/OBJETIVO_2/Distr_testancia/sobreamortiguado/A0.5"
+    )
+    carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+    # Si quieres, puedes guardar el resumen en una subcarpeta aparte
+    carpeta_resumen = carpeta_salida / "Analisis_cola"
+    carpeta_resumen.mkdir(parents=True, exist_ok=True)
+
+    # ------------------------------------------------------------
+    # LISTA PARA GUARDAR RESULTADOS
+    # ------------------------------------------------------------
+    resultados = []
+
+    # ------------------------------------------------------------
+    # BUCLE SOBRE ETAS
+    # ------------------------------------------------------------
+    for eta in etas:
+
+        tau_min = cortes_por_eta[eta]
+
+        # Nombres de archivos
+        archivo1 = carpeta_datos / f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
+        archivo2 = carpeta_datos / f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
+
+        # Cargar datos
+        est1 = np.loadtxt(archivo1, ndmin=1)
+        est2 = np.loadtxt(archivo2, ndmin=1)
+
+        # Figura con dos subplots: pozo 1 y pozo 2
+        fig, axs = plt.subplots(1, 2, figsize=(14, 6))
+
+        for j, tiempos in enumerate([est1, est2]):
+
+            ax = axs[j]
+
+            # ----------------------------------------------------
+            # HISTOGRAMA
+            # ----------------------------------------------------
+            densidad, bordes, _ = ax.hist(
+                tiempos,
+                bins=bins,
+                density=True,
+                alpha=0.35,
+                label="Distribución simulada"
+            )
+
+            # ----------------------------------------------------
+            # AJUSTE DE LA COLA
+            # ----------------------------------------------------
+            cola = tiempos[tiempos >= tau_min]
+            N_total = len(tiempos)
+            N_cola = len(cola)
+
+            if N_cola < 2:
+                print(f"No hay suficientes datos en la cola para eta={eta}, pozo {j+1}")
+                continue
+
+            # Ajuste exponencial de la cola:
+            # p(tau | tau >= tau_min) ~ k exp[-k (tau - tau_min)]
+            # Entonces, para la distribución total:
+            # p(tau) ~ C exp(-k tau), con
+            # C = (N_cola/N_total) * k * exp(k*tau_min)
+            k = 1.0 / np.mean(cola - tau_min)
+            tau_car = 1.0 / k
+            frac_cola = N_cola / N_total
+            C = frac_cola * k * np.exp(k * tau_min)
+
+            # Rango para dibujar la recta
+            x_fit = np.linspace(tau_min, np.max(tiempos), 400)
+            y_fit = C * np.exp(-k * x_fit)
+
+            ax.plot(
+                x_fit,
+                y_fit,
+                "--",
+                linewidth=2.5,
+                label=rf"$p(\tau) = {C:.3e}\,e^{{-{k:.4f}\tau}}$"
+            )
+
+            # Línea vertical indicando el corte
+            ax.axvline(
+                tau_min,
+                linestyle=":",
+                linewidth=1.8,
+                color="gray",
+                label=rf"$\tau_{{\min}} = {tau_min:.0f}$"
+            )
+
+            # ----------------------------------------------------
+            # ESTÉTICA
+            # ----------------------------------------------------
+            ax.set_yscale("log")
+            ax.set_title(f"Pozo {j+1}", fontsize=18)
+            ax.set_xlabel(r"Tiempo de estancia $\tau$", fontsize=15)
+            ax.set_ylabel(r"Densidad de probabilidad $p(\tau)$", fontsize=15)
+            ax.grid(alpha=0.3, which="both")
+            ax.legend(fontsize=12)
+
+            # ----------------------------------------------------
+            # GUARDAR RESULTADOS EN TABLA
+            # ----------------------------------------------------
+            resultados.append({
+                "A": A,
+                "eta": eta,
+                "Pozo": j + 1,
+                "tau_min": tau_min,
+                "N_total": N_total,
+                "N_cola": N_cola,
+                "fraccion_cola": frac_cola,
+                "k": k,
+                "Tiempo_caracteristico_1_sobre_k": tau_car,
+                "C_prefactor": C
+            })
+
+            # Imprimir por pantalla
+            print(f"\nA = {A}, eta = {eta}, pozo {j+1}")
+            print(f"N total = {N_total}")
+            print(f"N cola  = {N_cola}")
+            print(f"tau_min = {tau_min}")
+            print(f"k       = {k:.6f}")
+            print(f"1/k     = {tau_car:.3f}")
+            print(f"C       = {C:.6e}")
+
+        # --------------------------------------------------------
+        # TÍTULO GENERAL
+        # --------------------------------------------------------
+        fig.suptitle(
+            rf"Distribución de tiempos de estancia y ajuste de la cola exponencial"
+            "\n"
+            rf"Escala semilogarítmica ($A={A}$, $\eta={eta}$)",
+            fontsize=20
+        )
+
+        plt.tight_layout()
+
+        # --------------------------------------------------------
+        # GUARDAR FIGURA
+        # --------------------------------------------------------
+        nombre_fig = carpeta_salida / f"Ajuste_cola_A{A:.1f}_eta{eta:.2f}.png"
+        plt.savefig(nombre_fig, dpi=300, bbox_inches="tight")
+
+        plt.show()
+        plt.close()
+
+        print(f"\nFigura guardada en: {nombre_fig}")
+
+    # ------------------------------------------------------------
+    # GUARDAR TABLA RESUMEN
+    # ------------------------------------------------------------
+    tabla = pd.DataFrame(resultados)
+
+    salida_csv = carpeta_resumen / f"Resumen_ajustes_subamortiguado_A{A:.1f}.csv"
+    tabla.to_csv(salida_csv, index=False)
+
+    print("\nTabla resumen guardada en:")
+    print(salida_csv)
+
+    # ============================================================
+    # OBJETIVO 2 - ESTABILIDAD DEL AJUSTE EXPONENCIAL
+    # A = 1.0 - SUBAMORTIGUADO Y SOBREAMORTIGUADO
+    # ============================================================
+
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from pathlib import Path
+
+    base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+    A = 1.0
+
+    cortes = [0, 20, 50, 100, 150, 200, 300, 500, 800]
+
+    # Separar los dos grupos
+    regimenes = {
+        "subamortiguado": [0.01, 0.04],
+        "sobreamortiguado": [3.5, 5.0]
+    }
+
+    # Carpeta donde están los TXT
+    carpeta_datos = (
+        base / "Py/plots/OBJETIVO_2/Tiempos_medios_eta/A1.0"
+    )
+
+    for regimen, etas in regimenes.items():
+
+        # Carpeta de análisis
+        carpeta_salida = (
+            base / "Py/plots/OBJETIVO_2/Distr_testancia"
+            / regimen / "A1.0" / "Analisis_cola"
+        )
+
+        carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+        nombre_png = (
+            carpeta_salida /
+            f"Estabilidad_k_{regimen}_A{A:.1f}.png"
+        )
+
+        nombre_csv = (
+            carpeta_salida /
+            f"Estabilidad_k_{regimen}_A{A:.1f}.csv"
+        )
+
+        # Evitar sobrescribir resultados anteriores
+        if nombre_png.exists() or nombre_csv.exists():
+            raise FileExistsError(
+                f"Ya existen resultados en {carpeta_salida}"
+            )
+
+        resultados = []
+
+        # Dos filas (etas) y dos columnas (pozos)
+        fig, axs = plt.subplots(
+            2, 2, figsize=(13, 9), sharex=True
+        )
+
+        for i, eta in enumerate(etas):
+
+            archivo1 = carpeta_datos / (
+                f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
+            )
+
+            archivo2 = carpeta_datos / (
+                f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
+            )
+
+            est1 = np.loadtxt(archivo1, ndmin=1)
+            est2 = np.loadtxt(archivo2, ndmin=1)
+
+            for j, tiempos in enumerate([est1, est2]):
+
+                tasas = []
+                cantidades = []
+
+                print(f"\nA={A}, eta={eta}, pozo {j+1}")
+                print("Corte    N datos      k          1/k")
+
+                for corte in cortes:
+
+                    cola = tiempos[tiempos >= corte]
+                    N = len(cola)
+
+                    if N >= 2 and np.mean(cola - corte) > 0:
+                        k = 1.0 / np.mean(cola - corte)
+                        tau_car = 1.0 / k
+                    else:
+                        k = np.nan
+                        tau_car = np.nan
+
+                    tasas.append(k)
+                    cantidades.append(N)
+
+                    resultados.append({
+                        "A": A,
+                        "eta": eta,
+                        "Pozo": j + 1,
+                        "tau_min": corte,
+                        "N_cola": N,
+                        "k": k,
+                        "Tiempo_caracteristico": tau_car
+                    })
+
+                    print(
+                        f"{corte:5.0f} {N:9d} "
+                        f"{k:10.6f} {tau_car:11.3f}"
+                    )
+
+                # Gráfica de estabilidad
+                ax = axs[i, j]
+
+                ax.plot(cortes, tasas, "o-", markersize=4)
+
+                ax.set_title(rf"Pozo {j+1}, $\eta={eta}$")
+                ax.set_xlabel(r"Tiempo mínimo $\tau_{\min}$")
+                ax.set_ylabel(r"Tasa de decaimiento $k$")
+
+                # Números del eje X en todos los paneles
+                ax.set_xticks(cortes)
+                ax.tick_params(
+                    axis="x", labelbottom=True, labelrotation=35
+                )
+
+                ax.grid(alpha=0.3)
+
+                for corte, k, N in zip(
+                    cortes, tasas, cantidades
+                ):
+                    if np.isfinite(k):
+                        ax.annotate(
+                            f"N={N}",
+                            (corte, k),
+                            xytext=(0, 8),
+                            textcoords="offset points",
+                            ha="center",
+                            fontsize=7
+                        )
+
+        fig.suptitle(
+            f"Estabilidad de la tasa exponencial\n"
+            rf"Régimen {regimen} ($A={A}$)",
+            fontsize=15
+        )
+
+        plt.tight_layout()
+
+        # Guardar figura
+        plt.savefig(
+            nombre_png, dpi=300, bbox_inches="tight"
+        )
+
+        plt.show()
+        plt.close()
+
+        # Guardar CSV
+        tabla = pd.DataFrame(resultados)
+        tabla.to_csv(nombre_csv, index=False)
+
+        print(f"\nGráfica guardada: {nombre_png}")
+        print(f"Tabla guardada: {nombre_csv}")
+
+    # ============================================================
+    # OBJETIVO 2 - DISTRIBUCION DE TIEMPOS DE ESTANCIA
+    # Y AJUSTE DE LA COLA EXPONENCIAL
+    # SUBAMORTIGUADO - A = 1.0
+    # ============================================================
+
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    from pathlib import Path
+
+    # ------------------------------------------------------------
+    # PARAMETROS
+    # ------------------------------------------------------------
+
+    base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+    A = 1.0
+    etas = [0.01, 0.04]
+
+    # Cortes obtenidos del analisis de estabilidad
+    cortes_por_eta = {
+        0.01: 300.0,
+        0.04: 150.0
+    }
+
+    bins = 50
+
+    # ------------------------------------------------------------
+    # CARPETAS
+    # ------------------------------------------------------------
+
+    # Archivos TXT originales
+    carpeta_datos = (
+        base / "Py/plots/OBJETIVO_2/Tiempos_medios_eta/A1.0"
+    )
+
+    # Graficas definitivas
+    carpeta_salida = (
+        base / "Py/plots/OBJETIVO_2/Distr_testancia/subamortiguado/A1.0"
+    )
+    carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+    # Tabla resumen
+    carpeta_resumen = carpeta_salida / "Analisis_cola"
+    carpeta_resumen.mkdir(parents=True, exist_ok=True)
+
+    # ------------------------------------------------------------
+    # COMPROBAR QUE NO VAMOS A SOBRESCRIBIR ARCHIVOS
+    # ------------------------------------------------------------
+
+    archivos_salida = [
+        carpeta_salida /
+        f"Ajuste_cola_subamortiguado_A{A:.1f}_eta{eta:.2f}.png"
+        for eta in etas
+    ]
+
+    archivo_csv = (
+        carpeta_resumen /
+        f"Resumen_ajustes_subamortiguado_A{A:.1f}.csv"
+    )
+
+    for archivo in archivos_salida + [archivo_csv]:
+        if archivo.exists():
+            raise FileExistsError(
+                f"El archivo ya existe y no se sobrescribira: {archivo}"
+            )
+
+    # ------------------------------------------------------------
+    # AJUSTES EXPONENCIALES
+    # ------------------------------------------------------------
+
+    resultados = []
+
+    for eta, nombre_fig in zip(etas, archivos_salida):
+
+        tau_min = cortes_por_eta[eta]
+
+        archivo1 = carpeta_datos / (
+            f"estancia_pozo1_A{A:.1f}_eta{eta:.2f}.txt"
+        )
+
+        archivo2 = carpeta_datos / (
+            f"estancia_pozo2_A{A:.1f}_eta{eta:.2f}.txt"
+        )
+
+        est1 = np.loadtxt(archivo1, ndmin=1)
+        est2 = np.loadtxt(archivo2, ndmin=1)
+
+        fig, axs = plt.subplots(1, 2, figsize=(14, 6))
+
+        for j, tiempos in enumerate([est1, est2]):
+
+            ax = axs[j]
+
+            # Histograma normalizado de todas las estancias
+            ax.hist(
+                tiempos,
+                bins=bins,
+                density=True,
+                alpha=0.35,
+                label="Distribucion simulada"
+            )
+
+            # Seleccionar la cola exponencial
+            cola = tiempos[tiempos >= tau_min]
+
+            N_total = len(tiempos)
+            N_cola = len(cola)
+
+            if N_cola < 2:
+                raise ValueError(
+                    f"Datos insuficientes: eta={eta}, pozo {j+1}"
+                )
+
+            # Estimacion de maxima verosimilitud
+            k = 1.0 / np.mean(cola - tau_min)
+
+            tau_car = 1.0 / k
+
+            fraccion_cola = N_cola / N_total
+
+            # Modelo p(tau) = C exp(-k*tau)
+            C = fraccion_cola * k * np.exp(k * tau_min)
+
+            x_fit = np.linspace(
+                tau_min, np.max(tiempos), 500
+            )
+
+            y_fit = C * np.exp(-k * x_fit)
+
+            # Formato cientifico para la ecuacion
+            exponente = int(np.floor(np.log10(C)))
+            coeficiente = C / 10**exponente
+
+            ecuacion = (
+                rf"$p(\tau)={coeficiente:.3f}\times10^{{{exponente}}}"
+                rf"e^{{-{k:.4f}\tau}}$"
+            )
+
+            # Dibujar ajuste
+            ax.plot(
+                x_fit, y_fit, "--",
+                linewidth=2.5,
+                label=ecuacion
+            )
+
+            # Indicar el comienzo de la cola
+            ax.axvline(
+                tau_min,
+                linestyle=":",
+                linewidth=1.5,
+                color="gray",
+                label=rf"$\tau_{{\min}}={tau_min:g}$"
+            )
+
+            # Representacion semilogaritmica
+            ax.set_yscale("log")
+
+            ax.set_title(f"Pozo {j+1}", fontsize=16)
+            ax.set_xlabel(r"Tiempo de estancia $\tau$")
+            ax.set_ylabel(r"Densidad de probabilidad $p(\tau)$")
+
+            ax.grid(alpha=0.3, which="both")
+            ax.legend(fontsize=10)
+
+            # Guardar resultados numericos
+            resultados.append({
+                "A": A,
+                "eta": eta,
+                "Pozo": j + 1,
+                "tau_min": tau_min,
+                "N_total": N_total,
+                "N_cola": N_cola,
+                "fraccion_cola": fraccion_cola,
+                "k": k,
+                "Tiempo_caracteristico": tau_car,
+                "C": C
+            })
+
+            print(f"\nA={A}, eta={eta}, pozo {j+1}")
+            print(f"N total = {N_total}")
+            print(f"N cola = {N_cola}")
+            print(f"k = {k:.6f}")
+            print(f"1/k = {tau_car:.3f}")
+
+        # Titulo general
+        fig.suptitle(
+            "Distribucion de tiempos de estancia y ajuste de la cola exponencial\n"
+            rf"Escala semilogaritmica ($A={A}$, $\eta={eta}$)",
+            fontsize=16
+        )
+
+        plt.tight_layout()
+
+        # Guardar sin sobrescribir archivos antiguos
+        plt.savefig(
+            nombre_fig,
+            dpi=300,
+            bbox_inches="tight"
+        )
+
+        plt.show()
+        plt.close()
+
+    # ------------------------------------------------------------
+    # GUARDAR TABLA RESUMEN
+    # ------------------------------------------------------------
+
+    tabla = pd.DataFrame(resultados)
+
+    tabla.to_csv(archivo_csv, index=False)
+
+    print("\nTabla resumen guardada en:")
+    print(archivo_csv)
 
 #Term Polimero
 if False:
@@ -2347,9 +2315,9 @@ if False:
     plt.close()
 
 #Valor medio Rg^2
-if False:
+if True:
     ruta = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\Radio_giro.txt"
-    N = 4            # número de monómeros
+    N = 6             # número de monómeros
     ke = 100.0        # constante del muelle
     h = 0.001
     frac_zoom = 0.5   # fracción final de la simulación que se amplía
@@ -2395,6 +2363,7 @@ if False:
     )
     plt.show()
     plt.close()
+
 
 #plot scatter
 if False:
@@ -2472,5 +2441,3 @@ if False:
     )
     plt.show()
     plt.close()
-
-# %%
