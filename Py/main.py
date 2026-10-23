@@ -2253,8 +2253,10 @@ if False:
     N = 4           # número de monómeros
     ke = 100.0       # constante del muelle
     beta_inv = 1.0   # = kBT
+    l0=1
     h = 0.001
     frac_zoom = 0.2  # fracción final de la simulación que se amplía
+
 
     datos = np.loadtxt(ruta, ndmin=2)
     t  = datos[:, 0]
@@ -2263,6 +2265,7 @@ if False:
 
     Ec_esp = 1.5 * N * beta_inv
     Ep_esp = 0.5 * (N - 1) * beta_inv
+    Ep_esp2 = ke/2 * (3*beta_inv*beta_inv/(ke^2) + l0*l0*beta_inv/ke)/(beta_inv/ke + l0*l0)
 
     fig, axs = plt.subplots(1, 2, figsize=(13, 5))
     fig.suptitle(rf"Termalización polímero ($N={N}$, $k_e={ke:g}$)")
@@ -2276,8 +2279,11 @@ if False:
              lab_esp=rf"$3Nk_BT/2={Ec_esp:.3f}$",
              ylabel="Energía cinética media"),
         dict(ax=axs[1], y=Ep, esp=Ep_esp, color="tab:green",
-             lab_esp=rf"$(N-1)k_BT/2={Ep_esp:.3f}$",
-             ylabel="Energía potencial media"),
+             lab_esp=rf"$(N-1)k_BT/2={Ep_esp:.3f}, aportacion '1D'$",
+             ylabel="Energía potencial media '1D'"),
+        dict(ax=axs[1], y=Ep, esp=Ep_esp2, color="tab:red",
+             lab_esp=rf"<V>teo ={Ep_esp2:.3f}$, aportacion '3D'",
+             ylabel="Energía potencial media '3D'"),
     ]
 
     for c in configs:

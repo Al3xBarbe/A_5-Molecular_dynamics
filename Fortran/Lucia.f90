@@ -482,7 +482,7 @@ module objetivo_2
         integer, intent(in) :: pasos
         real, intent(in) :: h, xo, po, m, A, beta_inv, eta, F
         real(kind=8) :: Ki_m, V_m, Ki, V
-        real :: x, p, n1, n2, z_det, verlet_a, verlet_b, aux
+        real :: x, p, n1, n2, z_det, verlet_a, verlet_b, aux, t_min
         integer :: i, Contador, Contador2
         
         Contador2=0
@@ -497,10 +497,20 @@ module objetivo_2
             Contador=Contador+1
         end if
 
+        if (eta < 0.1 .and. abs(A-0.5) < 1.0e-6) then
+            t_min = 150.0
+        else if (eta < 0.1 .and. abs(A-1.0) < 1.0e-6) then
+            t_min = 300.0        ! eta pequeño: muchos recruces, filtro grande
+        else if (eta < 1.0 .and. abs(A-0.5) < 1.0e-6) then
+            t_min = 20.0         ! eta intermedio
+        else if (eta < 1.0 .and. abs(A-1.0) < 1.0e-6) then
+            t_min = 50.0
+        else
+            t_min = 50.0
+        end if
 
         open(unit=176, file="verlet_doblepozo.txt", status="replace")
-        open(unit=177, file="estancia_pozo1.txt", status="replace")
-        open(unit=178, file="estancia_pozo2.txt", status="replace")
+        open(unit=177, file="t_estancia.txt", status="replace")
 
         write(176,*) 0.0,x,p, Ki_m, V_m, Contador
         z_det=sqrt(2.0*eta*m*beta_inv*h)
@@ -527,11 +537,7 @@ module objetivo_2
             if(x*aux>0.0) then
                 Contador2=Contador2+1
             else
-                if (aux>0) then
-                    write(178,*) Contador2*h
-                else
-                    write(177,*) Contador2*h
-                end if
+                if (contador2*h>t_min) write(177,*) Contador2*h
                 Contador2 = 0
             end if
 
@@ -551,11 +557,7 @@ module objetivo_2
             if(x*aux>0.0) then
                 Contador2=Contador2+1
             else
-                if (aux>0.0) then
-                    write(178,*) Contador2*h
-                else
-                    write(177,*) Contador2*h
-                end if
+                if (contador2*h>t_min) write(177,*) Contador2*h
                 Contador2 = 0
             end if
 
@@ -563,9 +565,66 @@ module objetivo_2
 
         close(176)
         close(177)
-        close(178)
-
     end subroutine verlet_doblepozo
+
+    subroutine verlet_doblepozo_testancia(pasos,h,xo,po,m,A,beta_inv,eta,F)
+        implicit none
+        integer, intent(in) :: pasos
+        real, intent(in) :: h, xo, po, m, A, beta_inv, eta, F
+        real :: x, p, n1, n2, z_det, verlet_a, verlet_b, aux, t_min
+        integer :: i, Contador
+        
+        Contador=0
+        x = xo
+        p = po
+
+        if (eta < 0.1 .and. abs(A-0.5) < 1.0e-6) then
+            t_min = 150.0
+        else if (eta < 0.1 .and. abs(A-1.0) < 1.0e-6) then
+            t_min = 300.0        ! eta pequeño: muchos recruces, filtro grande
+        else if (eta < 1.0 .and. abs(A-0.5) < 1.0e-6) then
+            t_min = 20.0         ! eta intermedio
+        else if (eta < 1.0 .and. abs(A-1.0) < 1.0e-6) then
+            t_min = 50.0
+        else
+            t_min = 50.0
+        end if
+
+        open(unit=200, file="t_estancia_only.txt", status="replace")
+        z_det=sqrt(2.0*eta*m*beta_inv*h)
+        verlet_a = (1-(eta*h)/2)/(1+(eta*h)/2)
+        verlet_b = 1/(1+(eta*h)/2)
+
+        do i = 1, pasos/2
+
+            call generar_normal_f90(n1,n2)
+
+            aux = x
+            x = x + verlet_b*h*p/m + verlet_b*h*h*(-4*A*x*(x**2-1)+F)/(2.0*m) + verlet_b*h*z_det*n1/(2.0*m)
+            p = verlet_a*p + h*(verlet_a*(-4*A*aux*(aux**2-1)+F) + (-4*A*x*(x**2-1)+F))/2 + verlet_b*z_det*n1
+
+            if(x*aux>0.0) then
+                Contador=Contador+1
+            else
+                if (contador*h>t_min) write(200,*) Contador*h
+                Contador = 0
+            end if
+
+            aux = x
+            x = x + verlet_b*h*p/m + verlet_b*h*h*(-4*A*x*(x**2-1)+F)/(2*m) + verlet_b*h*z_det*n2/(2.0*m)
+            p = verlet_a*p + h*(verlet_a*(-4*A*aux*(aux**2-1)+F) + (-4*A*x*(x**2-1)+F))/2 + verlet_b*z_det*n2
+
+            if(x*aux>0.0) then
+                Contador=Contador+1
+            else
+                if (contador*h>t_min) write(200,*) Contador*h
+                Contador = 0
+            end if
+
+        end do
+
+        close(200)
+    end subroutine verlet_doblepozo_testancia
 
     subroutine verlet_dp_fuerza(pasos,h,xo,po,m,A,beta_inv,eta,F)
         implicit none
@@ -621,7 +680,6 @@ module objetivo_3
     integer, parameter :: dp = kind(1.0d0)   ! precision doble (main la hereda con "use objetivo_3")
     contains
 
-    !Rutina que calcula la energía potencial y las fuerzas sobre cada monómero del polimero, dado un conjunto de posiciones r
     subroutine fuerzas(r,f,ue,l0,k)
         real(dp), intent(in) :: r(:, :), l0, k
         real(dp), intent(out) :: f(:, :), ue
@@ -640,7 +698,6 @@ module objetivo_3
         end do
     end subroutine fuerzas
 
-    !Rutina principal que implementa el algoritmo de Verlet estocástico para simular la dinámica de un polimero en un baño térmico
     subroutine polimero(pasos, h, r, p, m, k, beta_inv, eta, l0)
         integer, intent(in) :: pasos
         real(dp), intent(in) :: h, m, k, beta_inv, eta, l0
@@ -721,10 +778,6 @@ module objetivo_3
 
     end subroutine polimero
     
-    !El radio de giro es una medida de la extensión espacial de un objeto, como un polimero, 
-    !y se define como la raíz cuadrada del promedio de las distancias al cuadrado de cada monómero respecto al centro de masa del polimero. 
-    !En esta rutina, se calcula el radio de giro promedio del polimero a lo largo de la simulación.
-    !Rutina que calcula el radio de giro promedio del polimero a lo largo de la simulación
     subroutine radio_giro (pasos, h, r, p, m, k, beta_inv, eta, l0)
         integer, intent(in) :: pasos
         real(dp), intent(in) :: h, m, k, beta_inv, eta, l0
@@ -733,10 +786,10 @@ module objetivo_3
         real(dp) :: n1(size(r,1),size(r,2)), n2(size(r,1),size(r,2))
         real(dp) :: z_det, verlet_a, verlet_b
         real :: gaus1, gaus2
-        !Centro de masa del polimero, radio de giro al cuadrado, radio de giro promedio y energía potencial
-        real(dp) :: rcm(3), rg2, rg2_m, ue
+        real(dp) :: rcm(3), rg2_m, rg_m, ue, rg2, rg
         integer :: i,j,ka
 
+        !rg2_m, rg_m, raiz(rg2_m), rg_m*2
         open(unit=181, file="Radio_giro.txt", status="replace")
 
         z_det=sqrt(2.0_dp*eta*m*beta_inv*h)
@@ -747,14 +800,18 @@ module objetivo_3
         rcm = sum(r, dim=2) / size(r,2)
         !Calculo radio de giro al cuadrado del polimero en la configuracion inicial
         rg2 = 0.0_dp
+        rg= 0.0_dp
         do i = 1, size(r,2)
             rg2 = rg2 + sum((r(:,i) - rcm)**2)
         end do
         rg2 = rg2 / size(r,2)
 
-        rg2_m=rg2
+        rg=sqrt(rg2)
 
-        write(181,*) 0.0_dp, rg2_m
+        rg2_m=rg2
+        rg_m=rg
+
+        write(181,*) 0.0_dp, rg2_m, rg_m, sqrt(rg2_m), (rg_m)**2
 
 
         do i = 1, pasos/2
@@ -779,10 +836,13 @@ module objetivo_3
             end do
             rg2 = rg2 / size(r,2)
 
+            rg = sqrt(rg2)
+
             rg2_m=rg2_m + rg2
+            rg_m=rg_m + rg
             
             !Guardamos en el archivo de salida el tiempo y el radio de giro promedio cada 50 pasos
-            if (mod(i,50) == 0) write(181,*) (2*i-1)*h, rg2_m/(2*i)
+            if (mod(i,50) == 0) write(181,*) (2*i-1)*h, rg2_m/(2*i), rg_m/(2*i), sqrt(rg2_m/(2*i)), (rg_m/(2*i))**2
 
             aux = f
             r = r + verlet_b*h*p/m + verlet_b*h*h*f/(2.0_dp*m) + verlet_b*h*z_det*n2/(2.0_dp*m)
@@ -796,15 +856,220 @@ module objetivo_3
             end do
             rg2 = rg2 / size(r,2)
 
+            rg = sqrt(rg2)
+
             rg2_m=rg2_m + rg2
 
-            if (mod(i,50) == 0) write(181,*) 2*i*h, rg2_m/(2*i+1)
+            rg_m = rg_m + rg
+
+            if (mod(i,50) == 0) write(181,*) 2*i*h, rg2_m/(2*i+1), rg_m/(2*i+1), sqrt(rg2_m/(2*i+1)), (rg_m/(2*i+1))**2
 
         end do
 
         close(181)
 
     end subroutine radio_giro
+
+    subroutine dist_extremos (pasos, h, r, p, m, k, beta_inv, eta, l0)
+        integer, intent(in) :: pasos
+        real(dp), intent(in) :: h, m, k, beta_inv, eta, l0
+        real(dp), intent(inout) :: r(:, :), p(:, :)
+        real(dp) :: f(size(r,1), size(r,2)), aux(size(r,1),size(r,2))
+        real(dp) :: n1(size(r,1),size(r,2)), n2(size(r,1),size(r,2))
+        real(dp) :: z_det, verlet_a, verlet_b
+        real :: gaus1, gaus2
+        real(dp) :: ue, Ree, Ree_m
+        integer :: i,j,ka
+
+        !rg2_m, rg_m, raiz(rg2_m), rg_m*2
+        open(unit=197, file="Radio_giro.txt", status="replace")
+
+        z_det=sqrt(2.0_dp*eta*m*beta_inv*h)
+        verlet_a = (1.0_dp-(eta*h)/2.0_dp)/(1.0_dp+(eta*h)/2.0_dp)
+        verlet_b = 1.0_dp/(1.0_dp+(eta*h)/2.0_dp)
+        call fuerzas(r,f,ue,l0,k)
+
+        Ree= sqrt(sum((r(:,1)-r(:,size(r,2)))**2))
+        Ree_m=Ree
+
+        write(197,*) 0.0_dp, Ree
+
+
+        do i = 1, pasos/2
+
+            do ka=1,size(r,2)
+                do j=1, size(r,1)
+                    call generar_normal_f90(gaus1,gaus2)
+                    n1(j,ka)=gaus1
+                    n2(j,ka)=gaus2
+                end do 
+            end do 
+
+            aux = f
+            r = r + verlet_b*h*p/m + verlet_b*h*h*f/(2.0_dp*m) + verlet_b*h*z_det*n1/(2.0_dp*m)
+            call fuerzas(r,f,ue,l0,k)
+            p = verlet_a*p + h*(verlet_a*aux + f)/2.0_dp + verlet_b*z_det*n1
+            
+            Ree= sqrt(sum((r(:,1)-r(:,size(r,2)))**2))
+            Ree_m=Ree_m + Ree
+            if (mod(i,50) == 0) write(197,*) (2*i-1)*h, Ree_m/(2*i)
+
+            aux = f
+            r = r + verlet_b*h*p/m + verlet_b*h*h*f/(2.0_dp*m) + verlet_b*h*z_det*n2/(2.0_dp*m)
+            call fuerzas(r,f,ue,l0,k)
+            p = verlet_a*p + h*(verlet_a*aux + f)/2.0_dp + verlet_b*z_det*n2
+
+            Ree= sqrt(sum((r(:,1)-r(:,size(r,2)))**2))
+            Ree_m=Ree_m + Ree
+            if (mod(i,50) == 0) write(197,*) (2*i)*h, Ree_m/((2*i)+1)
+
+        end do
+
+        close(197)
+
+    end subroutine dist_extremos
+
+    subroutine dist_extremos_F (pasos, h, r, p, m, k, beta_inv, eta, l0, Fuerza)
+        integer, intent(in) :: pasos
+        real(dp), intent(in) :: h, m, k, beta_inv, eta, l0
+        real(dp), intent(inout) :: r(:, :), p(:, :)
+        real(dp), intent(in) :: Fuerza(size(r,1)) 
+        real(dp) :: r0(size(r,1))
+        real(dp) :: f(size(r,1), size(r,2)), aux(size(r,1),size(r,2))
+        real(dp) :: n1(size(r,1),size(r,2)), n2(size(r,1),size(r,2))
+        real(dp) :: z_det, verlet_a, verlet_b
+        real :: gaus1, gaus2
+        real(dp) :: ue, Ree, Ree_m
+        integer :: i,j,ka
+
+        !rg2_m, rg_m, raiz(rg2_m), rg_m*2
+        open(unit=198, file="Radio_giro_F.txt", status="replace")
+        
+        r0=r(:,1)
+        z_det=sqrt(2.0_dp*eta*m*beta_inv*h)
+        verlet_a = (1.0_dp-(eta*h)/2.0_dp)/(1.0_dp+(eta*h)/2.0_dp)
+        verlet_b = 1.0_dp/(1.0_dp+(eta*h)/2.0_dp)
+        call fuerzas(r,f,ue,l0,k)
+        f(:,size(r,2))=f(:,size(r,2)) + Fuerza
+
+        Ree = sum((r(:,size(r,2))-r(:,1))*Fuerza) / sqrt(sum(Fuerza**2)) 
+        Ree_m=Ree
+        write(198,*) 0.0_dp, Ree
+
+        do i = 1, pasos/2
+            do ka=1,size(r,2)
+                do j=1, size(r,1)
+                    call generar_normal_f90(gaus1,gaus2)
+                    n1(j,ka)=gaus1
+                    n2(j,ka)=gaus2
+                end do 
+            end do 
+
+            aux = f
+            r = r + verlet_b*h*p/m + verlet_b*h*h*f/(2.0_dp*m) + verlet_b*h*z_det*n1/(2.0_dp*m)
+            r(:,1)=r0
+            call fuerzas(r,f,ue,l0,k)
+            f(:,size(r,2)) = f(:,size(r,2)) + Fuerza
+            p = verlet_a*p + h*(verlet_a*aux + f)/2.0_dp + verlet_b*z_det*n1
+            
+            Ree = sum((r(:,size(r,2))-r(:,1))*Fuerza) / sqrt(sum(Fuerza**2)) 
+            Ree_m=Ree_m + Ree
+            if (mod(i,50) == 0) write(198,*) (2*i-1)*h, Ree_m/(2*i)
+
+            aux = f
+            r = r + verlet_b*h*p/m + verlet_b*h*h*f/(2.0_dp*m) + verlet_b*h*z_det*n2/(2.0_dp*m)
+            r(:,1)=r0
+            call fuerzas(r,f,ue,l0,k)
+            f(:,size(r,2))=f(:,size(r,2)) + Fuerza
+            p = verlet_a*p + h*(verlet_a*aux + f)/2.0_dp + verlet_b*z_det*n2
+
+            Ree = sum((r(:,size(r,2))-r(:,1))*Fuerza) / sqrt(sum(Fuerza**2)) 
+            Ree_m=Ree_m + Ree
+            if (mod(i,50) == 0) write(198,*) (2*i)*h, Ree_m/((2*i)+1)
+
+        end do
+
+        close(198)
+
+    end subroutine dist_extremos_F
+
+    subroutine VMD(pasos, h, r, p, m, k, beta_inv, eta, l0, dataframe)
+        integer, intent(in) :: pasos, dataframe
+        real(dp), intent(in) :: h, m, k, beta_inv, eta, l0
+        real(dp), intent(inout) :: r(:, :), p(:, :)
+        real(dp) :: f(size(r,1), size(r,2)), aux(size(r,1),size(r,2))
+        real(dp) :: n1(size(r,1),size(r,2)), n2(size(r,1),size(r,2))
+        real(dp) :: z_det, verlet_a, verlet_b, t, ue
+        real :: gaus1, gaus2
+        integer :: i,j,ka
+
+        !Aquí guardaremos la energía cinética y potencial promedio del polimero a lo largo de la simulación
+        open(unit=190, file="Frames_VMD.xyz", status="replace")
+
+        t=0.0_dp
+
+        z_det=sqrt(2.0_dp*eta*m*beta_inv*h)
+        verlet_a = (1.0_dp-(eta*h)/2.0_dp)/(1.0_dp+(eta*h)/2.0_dp)
+        verlet_b = 1.0_dp/(1.0_dp+(eta*h)/2.0_dp)
+        call fuerzas(r,f,ue,l0,k)
+        !Energía cinética y potencial inicial del polimero
+
+        write(190,'(I0)') size(r,2)
+        write(190,'(A,F12.3,A,F8.2,A,F6.2,A,F6.2)') 't=', t, '  ke=', k, '  l0=', l0, '  eta=',eta
+        do j=1, size(r,2)
+            write(190,'(A,3F12.5)') 'C ', r(1,j), r(2,j), r(3,j)
+        end do
+
+        !Bucle principal de la simulación, donde se actualizan las posiciones y velocidades del polimero usando el algoritmo de Verlet estocástico
+        !Hace pasos/2 iteraciones, y en cada iteración se generan dos pasos de tiempo, uno con n1 y otro con n2
+        do i = 1, pasos/2
+
+            !Generamos dos matrices de números aleatorios gaussianos n1 y n2, que se usarán para actualizar las posiciones y velocidades del polimero
+            do ka=1,size(r,2)
+                do j=1, size(r,1)
+                    call generar_normal_f90(gaus1,gaus2)
+                    n1(j,ka)=gaus1
+                    n2(j,ka)=gaus2
+                end do 
+            end do 
+            
+            !Actualizamos las posiciones y velocidades del polimero usando el algoritmo de Verlet estocástico con n1
+            aux = f
+            r = r + verlet_b*h*p/m + verlet_b*h*h*f/(2.0_dp*m) + verlet_b*h*z_det*n1/(2.0_dp*m)
+            call fuerzas(r,f,ue,l0,k)
+            p = verlet_a*p + h*(verlet_a*aux + f)/2.0_dp + verlet_b*z_det*n1
+            
+            !Calculamos la energía cinética y potencial del polimero después de este paso, y las acumulamos en Ki_m y V_m para obtener el promedio
+            t = t + h
+            if (mod((2*i-1),dataframe) == 0)  then
+                write(190,'(I0)') size(r,2)
+                write(190,'(A,F12.3,A,F8.2,A,F6.2,A,F6.2)') 't=', t, '  ke=', k, '  l0=', l0, '  eta=',eta
+                do j=1, size(r,2)
+                    write(190,'(A,3F12.5)') 'C ', r(1,j), r(2,j), r(3,j)
+                end do
+            end if
+
+            !Repetimos el mismo proceso con n2, generando otro paso de tiempo y actualizando las posiciones y velocidades del polimero
+            aux = f
+            r = r + verlet_b*h*p/m + verlet_b*h*h*f/(2.0_dp*m) + verlet_b*h*z_det*n2/(2.0_dp*m)
+            call fuerzas(r,f,ue,l0,k)
+            p = verlet_a*p + h*(verlet_a*aux + f)/2.0_dp + verlet_b*z_det*n2
+
+            t = t + h
+            if (mod((2*i),dataframe) == 0)  then
+                write(190,'(I0)') size(r,2)
+                write(190,'(A,F12.3,A,F8.2,A,F6.2,A,F6.2)') 't=', t, '  ke=', k, '  l0=', l0, '  eta=',eta
+                do j=1, size(r,2)
+                    write(190,'(A,3F12.5)') 'C ', r(1,j), r(2,j), r(3,j)
+                end do
+                
+            end if
+
+        end do
+
+        close(190)
+
+    end subroutine VMD
 
 end module objetivo_3
 
