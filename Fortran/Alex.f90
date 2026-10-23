@@ -705,6 +705,7 @@ module objetivo_3
 
         close(180)
 
+
     end subroutine polimero
     
     !El radio de giro es una medida de la extensión espacial de un objeto, como un polimero, 
@@ -792,6 +793,84 @@ module objetivo_3
 
     end subroutine radio_giro
 
+    subroutine VMD(pasos, h, r, p, m, k, beta_inv, eta, l0, dataframe)
+        integer, intent(in) :: pasos, dataframe
+        real(dp), intent(in) :: h, m, k, beta_inv, eta, l0
+        real(dp), intent(inout) :: r(:, :), p(:, :)
+        real(dp) :: f(size(r,1), size(r,2)), aux(size(r,1),size(r,2))
+        real(dp) :: n1(size(r,1),size(r,2)), n2(size(r,1),size(r,2))
+        real(dp) :: z_det, verlet_a, verlet_b, t, ue
+        real :: gaus1, gaus2
+        integer :: i,j,ka
+
+        !Aquí guardaremos la energía cinética y potencial promedio del polimero a lo largo de la simulación
+        open(unit=190, file="Frames_VMD.xyz", status="replace")
+
+        t=0.0_dp
+
+        z_det=sqrt(2.0_dp*eta*m*beta_inv*h)
+        verlet_a = (1.0_dp-(eta*h)/2.0_dp)/(1.0_dp+(eta*h)/2.0_dp)
+        verlet_b = 1.0_dp/(1.0_dp+(eta*h)/2.0_dp)
+        call fuerzas(r,f,ue,l0,k)
+        !Energía cinética y potencial inicial del polimero
+
+        write(190,'(I0)') size(r,2)
+        write(190,'(A,F12.3,A,F8.2,A,F6.2,A,F6.2)') 't=', t, '  ke=', k, '  l0=', l0, '  eta=',eta
+        do j=1, size(r,2)
+            write(190,'(A,3F12.5)') 'C ', r(1,j), r(2,j), r(3,j)
+        end do
+
+        !Bucle principal de la simulación, donde se actualizan las posiciones y velocidades del polimero usando el algoritmo de Verlet estocástico
+        !Hace pasos/2 iteraciones, y en cada iteración se generan dos pasos de tiempo, uno con n1 y otro con n2
+        do i = 1, pasos/2
+
+            !Generamos dos matrices de números aleatorios gaussianos n1 y n2, que se usarán para actualizar las posiciones y velocidades del polimero
+            do ka=1,size(r,2)
+                do j=1, size(r,1)
+                    call generar_normal_f90(gaus1,gaus2)
+                    n1(j,ka)=gaus1
+                    n2(j,ka)=gaus2
+                end do 
+            end do 
+            
+            !Actualizamos las posiciones y velocidades del polimero usando el algoritmo de Verlet estocástico con n1
+            aux = f
+            r = r + verlet_b*h*p/m + verlet_b*h*h*f/(2.0_dp*m) + verlet_b*h*z_det*n1/(2.0_dp*m)
+            call fuerzas(r,f,ue,l0,k)
+            p = verlet_a*p + h*(verlet_a*aux + f)/2.0_dp + verlet_b*z_det*n1
+            
+            !Calculamos la energía cinética y potencial del polimero después de este paso, y las acumulamos en Ki_m y V_m para obtener el promedio
+            t = t + h
+            if (mod((2*i-1),dataframe) == 0)  then
+                write(190,'(I0)') size(r,2)
+                write(190,'(A,F12.3,A,F8.2,A,F6.2,A,F6.2)') 't=', t, '  ke=', k, '  l0=', l0, '  eta=',eta
+                do j=1, size(r,2)
+                    write(190,'(A,3F12.5)') 'C ', r(1,j), r(2,j), r(3,j)
+                end do
+            end if
+
+            !Repetimos el mismo proceso con n2, generando otro paso de tiempo y actualizando las posiciones y velocidades del polimero
+            aux = f
+            r = r + verlet_b*h*p/m + verlet_b*h*h*f/(2.0_dp*m) + verlet_b*h*z_det*n2/(2.0_dp*m)
+            call fuerzas(r,f,ue,l0,k)
+            p = verlet_a*p + h*(verlet_a*aux + f)/2.0_dp + verlet_b*z_det*n2
+
+            t = t + h
+            if (mod((2*i),dataframe) == 0)  then
+                write(190,'(I0)') size(r,2)
+                write(190,'(A,F12.3,A,F8.2,A,F6.2,A,F6.2)') 't=', t, '  ke=', k, '  l0=', l0, '  eta=',eta
+                do j=1, size(r,2)
+                    write(190,'(A,3F12.5)') 'C ', r(1,j), r(2,j), r(3,j)
+                end do
+                
+            end if
+
+        end do
+
+        close(190)
+
+    end subroutine VMD
+
 end module objetivo_3
 
 program main
@@ -825,10 +904,10 @@ program main
     integer, parameter :: n=6
     real(dp) :: h, m, ke, beta_inv, eta, l0
     real(dp) :: r(3,n), p(3,n)
-    integer :: tiempo, pasos
+    integer :: tiempo, pasos, dataframe
 
 
-    tiempo=150000
+    tiempo=1500
     h=0.001_dp
     pasos=int(real(tiempo,dp)/h)
     l0=1.0_dp
@@ -840,9 +919,11 @@ program main
     ke=100.0_dp
     beta_inv=1.0_dp
     eta=1.0_dp
+    dataframe=50
 
 
     call radio_giro(pasos,h,r,p,m,ke,beta_inv,eta,l0)
+    call VMD(pasos,h,r,p,m,ke,beta_inv,eta,l0,dataframe)
     !call verlet_dp_fuerza(pasos,h,x0,p0,m,A,beta_inv,eta,F)
 
     print *, "Pulsa ENTER para salir..."
