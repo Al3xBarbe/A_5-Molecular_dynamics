@@ -1052,68 +1052,322 @@ module objetivo_3
 end module objetivo_3
 
 
+
+
 program main
 
-    use generador_normal
-    use algoritmos_estocastios
-    use objetivo_2
+    use objetivo_3, only: dp, fuerzas
     implicit none
 
-    integer :: pasos, tiempo, i, j
-    real :: F, x0, p0, A, h, m, beta_inv, eta
+    ! ============================================================
+    ! OBJETIVO 3 - EQUIPARTICION DEL POLIMERO
+    ! ke = 1000
+    ! Inicializacion termica y simulacion optimizada
+    ! ============================================================
 
-    real, dimension(2) :: valores_A
-    real, dimension(4) :: etas
+    integer, parameter :: tamanos(5) = [4, 8, 16, 32, 64]
 
-    ! Parametros comunes
-    h = 0.001
-    x0 = 1.0
-    p0 = 0.0
-    F = 0.0
-    m = 1.0
-    beta_inv = 0.2
+    real(dp), parameter :: h = 0.001_dp
+    real(dp), parameter :: m = 1.0_dp
+    real(dp), parameter :: ke = 1000.0_dp
+    real(dp), parameter :: kBT = 1.0_dp
+    real(dp), parameter :: eta = 1.0_dp
+    real(dp), parameter :: l0 = 1.0_dp
 
-    ! Valores nuevos
-    valores_A = (/0.5, 1.0/)
-    etas = (/0.01, 0.04, 3.5, 5.0/)
+    ! Duracion de las fases
+    real(dp), parameter :: t_termal = 10000.0_dp
+    real(dp), parameter :: t_medicion = 100000.0_dp
 
-    ! Recorrer alturas de barrera
-    do i = 1, size(valores_A)
+    ! Frecuencias de muestreo y guardado
+    integer, parameter :: cada_muestra = 10
+    integer, parameter :: cada_guardado = 10000
 
-        A = valores_A(i)
+    real(dp), parameter :: dos_pi = 2.0_dp*acos(-1.0_dp)
 
-        ! Tiempo diferente para cada barrera
-        if (A == 0.5) then
-            tiempo = 500000
-        else
-            tiempo = 1500000
+    integer :: pasos_termal, pasos_medicion, j
+    real(dp) :: a, b, amp_ruido
+
+    logical :: existe
+    character(len=240) :: nombre
+
+    ! ============================================================
+    ! PREPARACION
+    ! ============================================================
+
+    pasos_termal = nint(t_termal/h)
+    pasos_medicion = nint(t_medicion/h)
+
+    ! Coeficientes del integrador estocastico
+    a = (1.0_dp-eta*h/2.0_dp)/(1.0_dp+eta*h/2.0_dp)
+    b = 1.0_dp/(1.0_dp+eta*h/2.0_dp)
+
+    amp_ruido = sqrt(2.0_dp*eta*m*kBT*h)
+
+    ! Comprobar archivos ANTES de empezar las simulaciones
+    do j = 1, size(tamanos)
+
+        call ruta_salida(tamanos(j), nombre)
+
+        inquire(file=trim(nombre), exist=existe)
+
+        if (existe) then
+            print *, "El archivo ya existe: ", trim(nombre)
+            error stop "No se sobrescribira ningun TXT."
         end if
-
-        pasos = nint(real(tiempo) / h)
-
-        ! Recorrer amortiguamientos
-        do j = 1, size(etas)
-
-            eta = etas(j)
-
-            print *, "===================================="
-            print *, "Simulacion ", j, " de ", size(etas)
-            print *, "A = ", A
-            print *, "eta = ", eta
-            print *, "Tiempo total = ", tiempo
-            print *, "Pasos = ", pasos
-            print *, "===================================="
-
-            call verlet_doblepozo( &
-                pasos, h, x0, p0, m, A, beta_inv, eta, F &
-            )
-
-            print *, "Simulacion finalizada"
-
-        end do
 
     end do
 
-    print *, "Todas las simulaciones terminadas"
+    call random_seed()
+
+    print *, "========================================"
+    print *, " EQUIPARTICION DEL POLIMERO"
+    print *, " ke = ", ke
+    print *, " Termalizacion = ", t_termal
+    print *, " Medicion = ", t_medicion
+    print *, "========================================"
+
+    ! Simular todos los tamanos
+    do j = 1, size(tamanos)
+
+        call simular_cadena(tamanos(j))
+
+    end do
+
+    print *, "TODAS LAS CADENAS TERMINADAS"
+
+contains
+
+    ! ============================================================
+    ! NOMBRE DEL ARCHIVO
+    ! ============================================================
+
+    subroutine ruta_salida(n, archivo)
+
+        integer, intent(in) :: n
+        character(len=*), intent(out) :: archivo
+
+        character(len=12) :: n_texto
+
+        write(n_texto, '(I0)') n
+
+        archivo = &
+            "Py/plots/OBJETIVO_3/Datos/k1000/EQUIP_E/" // &
+            "Termalizacion_polimero_N" // trim(n_texto) // &
+            "_ke1000_inicio_termico.txt"
+
+    end subroutine ruta_salida
+
+
+    ! ============================================================
+    ! GENERAR DOS NUMEROS NORMALES INDEPENDIENTES
+    ! Metodo de Box-Muller
+    ! ============================================================
+
+    subroutine pareja_normal(z1, z2)
+
+        real(dp), intent(out) :: z1, z2
+        real(dp) :: u1, u2, rho, ang
+
+        call random_number(u1)
+        call random_number(u2)
+
+        u1 = max(u1, tiny(1.0_dp))
+
+        rho = sqrt(-2.0_dp*log(u1))
+        ang = dos_pi*u2
+
+        z1 = rho*cos(ang)
+        z2 = rho*sin(ang)
+
+    end subroutine pareja_normal
+
+
+    ! ============================================================
+    ! SIMULACION DE UNA CADENA
+    ! ============================================================
+
+    subroutine simular_cadena(n)
+
+        integer, intent(in) :: n
+
+        real(dp), allocatable :: r(:,:), p(:,:), f(:,:)
+        real(dp), allocatable :: f_previa(:,:), ruido(:,:)
+
+        real(dp) :: direccion(3)
+        real(dp) :: z1, z2, z3, z4, longitud
+
+        real(dp) :: v, k_inst
+        real(dp) :: suma_k, suma_v
+
+        integer :: i, j, paso, n_muestras, unidad
+
+        character(len=240) :: archivo
+
+        allocate(r(3,n), p(3,n), f(3,n))
+        allocate(f_previa(3,n), ruido(3,n))
+
+        ! ========================================================
+        ! 1. POSICIONES INICIALES TERMICAS
+        ! ========================================================
+
+        r(:,1) = 0.0_dp
+
+        do i = 2, n
+
+            ! Orientacion aleatoria del enlace
+            call pareja_normal(z1, z2)
+            call pareja_normal(z3, z4)
+
+            direccion = [z1, z2, z3]
+            direccion = direccion/sqrt(sum(direccion**2))
+
+            ! Longitud cercana a l0, con fluctuacion termica
+            longitud = l0 + sqrt(kBT/ke)*z4
+
+            r(:,i) = r(:,i-1) + longitud*direccion
+
+        end do
+
+        ! ========================================================
+        ! 2. MOMENTOS INICIALES TERMICOS
+        ! ========================================================
+
+        do i = 1, n, 2
+
+            do j = 1, 3
+
+                call pareja_normal(z1, z2)
+
+                p(j,i) = sqrt(m*kBT)*z1
+                p(j,i+1) = sqrt(m*kBT)*z2
+
+            end do
+
+        end do
+
+        ! Calcular fuerzas y energia potencial inicial
+        call fuerzas(r, f, v, l0, ke)
+
+        print *, "----------------------------------------"
+        print *, "N =", n, " Termalizando..."
+
+        ! ========================================================
+        ! 3. TERMALIZACION
+        ! ========================================================
+
+        do paso = 1, pasos_termal
+
+            call paso_verlet(n, r, p, f, v, f_previa, ruido)
+
+        end do
+
+        print *, "N =", n, " Termalizacion terminada"
+
+        ! ========================================================
+        ! 4. PREPARAR MEDICION
+        ! ========================================================
+
+        call ruta_salida(n, archivo)
+
+        open(newunit=unidad, file=trim(archivo), &
+             status="new", action="write")
+
+        suma_k = 0.0_dp
+        suma_v = 0.0_dp
+        n_muestras = 0
+
+        print *, "N =", n, " Midiendo..."
+
+        ! ========================================================
+        ! 5. MEDICION
+        ! ========================================================
+
+        do paso = 1, pasos_medicion
+
+            call paso_verlet(n, r, p, f, v, f_previa, ruido)
+
+            ! Muestrear cada 10 pasos
+            if (mod(paso, cada_muestra) == 0) then
+
+                k_inst = sum(p*p)/(2.0_dp*m)
+
+                n_muestras = n_muestras + 1
+
+                suma_k = suma_k + k_inst
+                suma_v = suma_v + v
+
+            end if
+
+            ! Guardar los promedios cada 10000 pasos
+            if (mod(paso, cada_guardado) == 0) then
+
+                write(unidad,*) &
+                    real(paso,dp)*h, &
+                    suma_k/real(n_muestras,dp), &
+                    suma_v/real(n_muestras,dp)
+
+            end if
+
+        end do
+
+        close(unidad)
+
+        print *, "N =", n, " COMPLETADO"
+        print *, "<K> =", suma_k/real(n_muestras,dp)
+        print *, "<V> =", suma_v/real(n_muestras,dp)
+        print *, "Archivo: ", trim(archivo)
+
+        deallocate(r, p, f, f_previa, ruido)
+
+    end subroutine simular_cadena
+
+
+    ! ============================================================
+    ! 6. PASO DE VERLET ESTOCASTICO
+    ! ============================================================
+
+    subroutine paso_verlet(n, r, p, f, v, f_previa, ruido)
+
+        integer, intent(in) :: n
+
+        real(dp), intent(inout) :: r(3,n), p(3,n), f(3,n), v
+
+        real(dp), intent(out) :: f_previa(3,n), ruido(3,n)
+
+        real(dp) :: z1, z2
+
+        integer :: i, j
+
+        ! Generacion eficiente del ruido gaussiano
+        do i = 1, n, 2
+
+            do j = 1, 3
+
+                call pareja_normal(z1, z2)
+
+                ruido(j,i) = amp_ruido*z1
+                ruido(j,i+1) = amp_ruido*z2
+
+            end do
+
+        end do
+
+        ! Guardar fuerzas anteriores
+        f_previa = f
+
+        ! Actualizar posiciones
+        r = r + b*h*p/m + &
+            b*h*h*f_previa/(2.0_dp*m) + &
+            b*h*ruido/(2.0_dp*m)
+
+        ! Calcular fuerzas y potencial nuevos
+        call fuerzas(r, f, v, l0, ke)
+
+        ! Actualizar momentos
+        p = a*p + &
+            h*(a*f_previa+f)/2.0_dp + &
+            b*ruido
+
+    end subroutine paso_verlet
 
 end program main
