@@ -5698,3 +5698,1084 @@ grafica_comparativa(
 print("\nComparacion final terminada.")
 
 # %%
+
+# %%
+# RECUPERAR RESULTADOS DE ke=100 DESDE PYTHON
+
+import numpy as np
+from pathlib import Path
+
+variables = ["valores_N", "Rg2_100", "Ree2_100"]
+
+if all(nombre in globals() for nombre in variables):
+
+    base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+    carpeta = base / "Py/plots/OBJETIVO_3/RG/k100"
+    carpeta.mkdir(parents=True, exist_ok=True)
+
+    salida = carpeta / "Resumen_Rg_Ree_ke100_Recuperado.csv"
+
+    tabla = np.column_stack([
+        valores_N,
+        Rg2_100,
+        Ree2_100
+    ])
+
+    if salida.exists():
+        print("El archivo ya existe. No se sobrescribe.")
+    else:
+        np.savetxt(
+            salida,
+            tabla,
+            delimiter=",",
+            header="N,Rg2_media,Ree2_media",
+            comments="",
+            fmt=["%d", "%.8f", "%.8f"]
+        )
+
+        print("RESULTADOS RECUPERADOS")
+        print("Archivo guardado en:", salida)
+        print(tabla)
+
+else:
+    print("Los resultados ya no estan en la memoria de Python.")
+    print("Tendremos que recuperarlos de otra forma.")
+
+# %%
+
+# %%
+# RECUPERAR TABLAS DE Rg² Y Ree² PARA ke=100
+
+import numpy as np
+from pathlib import Path
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+carpeta_datos = base / "Py/plots/OBJETIVO_3/Datos/k100/RG"
+carpeta_salida = base / "Py/plots/OBJETIVO_3/RG/k100"
+
+carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+valores_N = [4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 64]
+
+ke = 100
+sigma2 = 1.0 / ke
+
+# Longitud cuadratica media teorica del enlace
+b2 = (1 + 6*sigma2 + 3*sigma2**2) / (1 + sigma2)
+
+resultados = []
+
+for N in valores_N:
+
+    # Para N=64 utilizamos la simulacion larga
+    if N == 64:
+        archivo = carpeta_datos / "Rg_Ree_N64_ke100_T200000.txt"
+    else:
+        archivo = carpeta_datos / f"Rg_Ree_N{N}_ke100.txt"
+
+    if not archivo.exists():
+        raise FileNotFoundError(f"No encuentro: {archivo}")
+
+    datos = np.loadtxt(archivo, ndmin=2)
+
+    if datos.shape[1] != 5:
+        raise ValueError(
+            f"El archivo de N={N} no tiene las 5 columnas esperadas."
+        )
+
+    # Ultimos valores de los promedios acumulados
+    Rg2_media = datos[-1, 1]
+    Ree2_media = datos[-1, 2]
+
+    # Predicciones teoricas
+    Rg2_teorica = (N**2 - 1) * b2 / (6*N)
+    Ree2_teorica = (N - 1) * b2
+
+    resultados.append([
+        N,
+        Rg2_media,
+        Ree2_media,
+        Rg2_teorica,
+        Ree2_teorica
+    ])
+
+tabla = np.array(resultados)
+
+# ------------------------------------------------------------
+# TABLA 1: DISTANCIA ENTRE EXTREMOS
+# ------------------------------------------------------------
+
+salida_ree = (
+    carpeta_salida /
+    "Ree2_vs_N_ke100_resultados_Claudia.csv"
+)
+
+if not salida_ree.exists():
+
+    np.savetxt(
+        salida_ree,
+        tabla[:, [0, 2, 4]],
+        delimiter=",",
+        header="N,Ree2_media,Ree2_teorica",
+        comments="",
+        fmt=["%d", "%.8f", "%.8f"]
+    )
+
+    print("Tabla de Ree² guardada.")
+else:
+    print("La tabla de Ree² ya existe. No se sobrescribe.")
+
+# ------------------------------------------------------------
+# TABLA 2: RESUMEN DE AMBAS MAGNITUDES
+# ------------------------------------------------------------
+
+salida_resumen = (
+    carpeta_salida /
+    "Resumen_Rg_Ree_ke100_Claudia.csv"
+)
+
+if not salida_resumen.exists():
+
+    np.savetxt(
+        salida_resumen,
+        tabla,
+        delimiter=",",
+        header=(
+            "N,Rg2_media,Ree2_media,"
+            "Rg2_teorica,Ree2_teorica"
+        ),
+        comments="",
+        fmt=["%d", "%.8f", "%.8f", "%.8f", "%.8f"]
+    )
+
+    print("Tabla resumen guardada.")
+else:
+    print("La tabla resumen ya existe. No se sobrescribe.")
+
+# ------------------------------------------------------------
+# MOSTRAR LOS RESULTADOS
+# ------------------------------------------------------------
+
+print("\n   N        Rg²          Ree²")
+print("--------------------------------")
+
+for fila in tabla:
+    print(
+        f"{int(fila[0]):4d}   "
+        f"{fila[1]:10.6f}   "
+        f"{fila[2]:10.6f}"
+    )
+
+print("\nArchivos guardados en:")
+print(carpeta_salida)
+
+
+
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 3 - RADIO DE GIRO SIN CUADRADO
+# AJUSTES INDIVIDUALES PARA ke=100 Y ke=1000
+#
+# Magnitud: Rg_rms = sqrt(<Rg²>)
+# Dos graficas por rigidez: normal y log-log
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+carpeta_rg = base / "Py/plots/OBJETIVO_3/RG"
+
+valores_N = np.array(
+    [4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 64]
+)
+
+kBT = 1.0
+l0 = 1.0
+
+# ============================================================
+# 1. FUNCION PARA PROCESAR UNA RIGIDEZ
+# ============================================================
+
+def analizar_radio_giro(ke):
+
+    carpeta = carpeta_rg / f"k{ke}"
+
+    archivo = (
+        carpeta /
+        f"Resumen_Rg_Ree_ke{ke}_Claudia.csv"
+    )
+
+    if not archivo.exists():
+        raise FileNotFoundError(
+            f"No encuentro el archivo: {archivo}"
+        )
+
+    # --------------------------------------------------------
+    # LEER LOS RESULTADOS
+    # --------------------------------------------------------
+
+    datos = np.genfromtxt(
+        archivo,
+        delimiter=",",
+        names=True,
+        encoding="utf-8-sig",
+        ndmin=1
+    )
+
+    N = np.asarray(datos["N"], dtype=float)
+    Rg2 = np.asarray(datos["Rg2_media"], dtype=float)
+
+    orden = np.argsort(N)
+    N = N[orden]
+    Rg2 = Rg2[orden]
+
+    if not np.array_equal(N, valores_N):
+        raise ValueError(
+            f"Los valores de N no son los esperados "
+            f"para ke={ke}"
+        )
+
+    if np.any(~np.isfinite(Rg2)) or np.any(Rg2 <= 0):
+        raise ValueError("Datos de Rg² no validos.")
+
+    # Radio de giro cuadratico medio
+    Rg = np.sqrt(Rg2)
+
+    # --------------------------------------------------------
+    # PREDICCION TEORICA
+    # --------------------------------------------------------
+
+    sigma2 = kBT / ke
+
+    b2 = (
+        l0**4 + 6*l0**2*sigma2 + 3*sigma2**2
+    ) / (l0**2 + sigma2)
+
+    N_suave = np.linspace(4, 64, 500)
+
+    Rg_teor = np.sqrt(
+        (N_suave**2 - 1)*b2/(6*N_suave)
+    )
+
+    # --------------------------------------------------------
+    # AJUSTE DE POTENCIA
+    # Rg = A * N^nu
+    # --------------------------------------------------------
+
+    coef, cov = np.polyfit(
+        np.log(N),
+        np.log(Rg),
+        1,
+        cov=True
+    )
+
+    nu, log_A = coef
+    A = np.exp(log_A)
+
+    error_nu = np.sqrt(cov[0, 0])
+
+    Rg_ajuste = A * N_suave**nu
+
+    log_pred = nu*np.log(N) + log_A
+
+    R2 = 1 - (
+        np.sum((np.log(Rg)-log_pred)**2)
+        / np.sum((np.log(Rg)-np.mean(np.log(Rg)))**2)
+    )
+
+    print(f"\n========== ke = {ke} ==========")
+    print(f"A = {A:.6f}")
+    print(f"nu = {nu:.6f} +/- {error_nu:.6f}")
+    print(f"R² log-log = {R2:.6f}")
+    print(f"b² teorico = {b2:.6f}")
+
+    # --------------------------------------------------------
+    # GRAFICA 1: EJES LINEALES
+    # --------------------------------------------------------
+
+    fig, ax = plt.subplots(figsize=(9, 6))
+
+    ax.plot(
+        N, Rg,
+        "o",
+        color="tab:blue",
+        markersize=6,
+        label="Simulación"
+    )
+
+    ax.plot(
+        N_suave,
+        Rg_ajuste,
+        color="tab:red",
+        linewidth=1.8,
+        label=(
+            rf"Ajuste: $R_{{g,\mathrm{{rms}}}}="
+            rf"{A:.4f}N^{{{nu:.4f}}}$"
+        )
+    )
+
+    ax.plot(
+        N_suave,
+        Rg_teor,
+        "--",
+        color="black",
+        linewidth=1.5,
+        label="Cadena ideal"
+    )
+
+    ax.set_title(
+        rf"Radio de giro frente a $N$ ($k_e={ke}$)"
+    )
+
+    ax.set_xlabel("Número de monómeros, N")
+    ax.set_ylabel(
+        r"$R_{g,\mathrm{rms}}=\sqrt{\langle R_g^2\rangle}$"
+    )
+
+    ax.set_xlim(2, 67)
+    ax.grid(alpha=0.3)
+    ax.legend(fontsize=9)
+
+    fig.tight_layout()
+
+    salida1 = (
+        carpeta /
+        f"Rg_rms_vs_N_ke{ke}_Claudia.png"
+    )
+
+    if not salida1.exists():
+        fig.savefig(
+            salida1,
+            dpi=300,
+            bbox_inches="tight"
+        )
+        print("Guardada:", salida1.name)
+    else:
+        print("Ya existe, no se sobrescribe:", salida1.name)
+
+    plt.show()
+    plt.close(fig)
+
+    # --------------------------------------------------------
+    # GRAFICA 2: ESCALA LOG-LOG
+    # --------------------------------------------------------
+
+    fig, ax = plt.subplots(figsize=(9, 6))
+
+    ax.plot(
+        N, Rg,
+        "o",
+        color="tab:blue",
+        markersize=6,
+        label="Simulación"
+    )
+
+    ax.plot(
+        N_suave,
+        Rg_ajuste,
+        color="tab:red",
+        linewidth=1.8,
+        label=(
+            rf"Ajuste: $R_{{g,\mathrm{{rms}}}}="
+            rf"{A:.4f}N^{{{nu:.4f}}}$"
+            "\n"
+            rf"$\nu={nu:.4f}\pm{error_nu:.4f}$"
+            "\n"
+            rf"$R^2={R2:.5f}$"
+        )
+    )
+
+    ax.plot(
+        N_suave,
+        Rg_teor,
+        "--",
+        color="black",
+        linewidth=1.5,
+        label="Cadena ideal"
+    )
+
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+
+    ax.set_title(
+        rf"Ajuste log-log del radio de giro ($k_e={ke}$)"
+    )
+
+    ax.set_xlabel("Número de monómeros, N")
+    ax.set_ylabel(
+        r"$R_{g,\mathrm{rms}}=\sqrt{\langle R_g^2\rangle}$"
+    )
+
+    ax.grid(True, which="both", alpha=0.3)
+    ax.legend(loc="upper left", fontsize=9)
+
+    fig.tight_layout()
+
+    salida2 = (
+        carpeta /
+        f"Rg_rms_vs_N_ke{ke}_loglog_Claudia.png"
+    )
+
+    if not salida2.exists():
+        fig.savefig(
+            salida2,
+            dpi=300,
+            bbox_inches="tight"
+        )
+        print("Guardada:", salida2.name)
+    else:
+        print("Ya existe, no se sobrescribe:", salida2.name)
+
+    plt.show()
+    plt.close(fig)
+
+    # --------------------------------------------------------
+    # GUARDAR TABLA DEL RADIO DE GIRO
+    # --------------------------------------------------------
+
+    Rg_teor_puntos = np.sqrt(
+        (N**2 - 1)*b2/(6*N)
+    )
+
+    tabla = np.column_stack([
+        N, Rg, Rg_teor_puntos
+    ])
+
+    salida_csv = (
+        carpeta /
+        f"Rg_rms_vs_N_ke{ke}_resultados_Claudia.csv"
+    )
+
+    if not salida_csv.exists():
+
+        np.savetxt(
+            salida_csv,
+            tabla,
+            delimiter=",",
+            header="N,Rg_rms,Rg_rms_teorica",
+            comments="",
+            fmt=["%d", "%.8f", "%.8f"]
+        )
+
+        print("Tabla guardada:", salida_csv.name)
+    else:
+        print("La tabla ya existe. No se sobrescribe.")
+
+    return A, nu, error_nu, R2
+
+
+# ============================================================
+# 2. EJECUTAR LOS AJUSTES INDIVIDUALES
+# ============================================================
+
+resultado_100 = analizar_radio_giro(100)
+resultado_1000 = analizar_radio_giro(1000)
+
+print("\n========== RESUMEN FINAL ==========")
+
+for ke, resultado in [
+    (100, resultado_100),
+    (1000, resultado_1000)
+]:
+
+    A, nu, error_nu, R2 = resultado
+
+    print(
+        f"ke={ke}: "
+        f"nu={nu:.5f} +/- {error_nu:.5f}, "
+        f"R²={R2:.5f}"
+    )
+
+print("\nCuatro graficas individuales terminadas.")
+
+
+# %%
+
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 3 - DISTANCIA ENTRE EXTREMOS SIN CUADRADO
+# AJUSTES INDIVIDUALES PARA ke=100 Y ke=1000
+#
+# Magnitud: Ree_rms = sqrt(<Ree²>)
+# Dos graficas por rigidez: normal y log-log
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+carpeta_rg = base / "Py/plots/OBJETIVO_3/RG"
+
+valores_N = np.array(
+    [4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 64]
+)
+
+kBT = 1.0
+l0 = 1.0
+
+# ============================================================
+# 1. FUNCION PARA PROCESAR CADA RIGIDEZ
+# ============================================================
+
+def analizar_distancia_extremos(ke):
+
+    carpeta = carpeta_rg / f"k{ke}"
+
+    archivo = (
+        carpeta /
+        f"Resumen_Rg_Ree_ke{ke}_Claudia.csv"
+    )
+
+    if not archivo.exists():
+        raise FileNotFoundError(
+            f"No encuentro el archivo: {archivo}"
+        )
+
+    # --------------------------------------------------------
+    # LEER RESULTADOS
+    # --------------------------------------------------------
+
+    datos = np.genfromtxt(
+        archivo,
+        delimiter=",",
+        names=True,
+        encoding="utf-8-sig",
+        ndmin=1
+    )
+
+    N = np.asarray(datos["N"], dtype=float)
+    Ree2 = np.asarray(datos["Ree2_media"], dtype=float)
+
+    orden = np.argsort(N)
+    N = N[orden]
+    Ree2 = Ree2[orden]
+
+    if not np.array_equal(N, valores_N):
+        raise ValueError(
+            f"Los tamaños N no coinciden para ke={ke}"
+        )
+
+    if np.any(~np.isfinite(Ree2)) or np.any(Ree2 <= 0):
+        raise ValueError("Datos de Ree² no validos.")
+
+    # Distancia entre extremos cuadratica media
+    Ree = np.sqrt(Ree2)
+
+    # --------------------------------------------------------
+    # PREDICCION TEORICA
+    # --------------------------------------------------------
+
+    sigma2 = kBT / ke
+
+    b2 = (
+        l0**4 + 6*l0**2*sigma2 + 3*sigma2**2
+    ) / (l0**2 + sigma2)
+
+    N_suave = np.linspace(4, 64, 500)
+
+    Ree_teor = np.sqrt(
+        (N_suave - 1)*b2
+    )
+
+    # --------------------------------------------------------
+    # AJUSTE DE POTENCIA: Ree = A*N^nu
+    # --------------------------------------------------------
+
+    coef, cov = np.polyfit(
+        np.log(N),
+        np.log(Ree),
+        1,
+        cov=True
+    )
+
+    nu, log_A = coef
+    A = np.exp(log_A)
+
+    error_nu = np.sqrt(cov[0, 0])
+
+    Ree_ajuste = A*N_suave**nu
+
+    log_pred = nu*np.log(N) + log_A
+
+    R2 = 1 - (
+        np.sum((np.log(Ree)-log_pred)**2)
+        / np.sum((np.log(Ree)-np.mean(np.log(Ree)))**2)
+    )
+
+    print(f"\n========== ke = {ke} ==========")
+    print(f"A = {A:.6f}")
+    print(f"nu = {nu:.6f} +/- {error_nu:.6f}")
+    print(f"R² log-log = {R2:.6f}")
+    print(f"b² teorico = {b2:.6f}")
+
+    # --------------------------------------------------------
+    # GRAFICA 1: EJES LINEALES
+    # --------------------------------------------------------
+
+    fig, ax = plt.subplots(figsize=(9, 6))
+
+    ax.plot(
+        N, Ree,
+        "o",
+        color="tab:blue",
+        markersize=6,
+        label="Simulación"
+    )
+
+    ax.plot(
+        N_suave,
+        Ree_ajuste,
+        color="tab:red",
+        linewidth=1.8,
+        label=(
+            rf"Ajuste: $R_{{ee,\mathrm{{rms}}}}="
+            rf"{A:.4f}N^{{{nu:.4f}}}$"
+        )
+    )
+
+    ax.plot(
+        N_suave,
+        Ree_teor,
+        "--",
+        color="black",
+        linewidth=1.5,
+        label="Cadena ideal"
+    )
+
+    ax.set_title(
+        rf"Distancia entre extremos frente a $N$ ($k_e={ke}$)"
+    )
+
+    ax.set_xlabel("Número de monómeros, N")
+    ax.set_ylabel(
+        r"$R_{ee,\mathrm{rms}}=\sqrt{\langle R_{ee}^2\rangle}$"
+    )
+
+    ax.set_xlim(2, 67)
+    ax.grid(alpha=0.3)
+    ax.legend(fontsize=9)
+
+    fig.tight_layout()
+
+    salida1 = (
+        carpeta /
+        f"Ree_rms_vs_N_ke{ke}_Claudia.png"
+    )
+
+    if not salida1.exists():
+        fig.savefig(
+            salida1,
+            dpi=300,
+            bbox_inches="tight"
+        )
+        print("Guardada:", salida1.name)
+    else:
+        print("Ya existe, no se sobrescribe:", salida1.name)
+
+    plt.show()
+    plt.close(fig)
+
+    # --------------------------------------------------------
+    # GRAFICA 2: ESCALA LOG-LOG
+    # --------------------------------------------------------
+
+    fig, ax = plt.subplots(figsize=(9, 6))
+
+    ax.plot(
+        N, Ree,
+        "o",
+        color="tab:blue",
+        markersize=6,
+        label="Simulación"
+    )
+
+    ax.plot(
+        N_suave,
+        Ree_ajuste,
+        color="tab:red",
+        linewidth=1.8,
+        label=(
+            rf"Ajuste: $R_{{ee,\mathrm{{rms}}}}="
+            rf"{A:.4f}N^{{{nu:.4f}}}$"
+            "\n"
+            rf"$\nu={nu:.4f}\pm{error_nu:.4f}$"
+            "\n"
+            rf"$R^2={R2:.5f}$"
+        )
+    )
+
+    ax.plot(
+        N_suave,
+        Ree_teor,
+        "--",
+        color="black",
+        linewidth=1.5,
+        label="Cadena ideal"
+    )
+
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+
+    ax.set_title(
+        rf"Ajuste log-log de la distancia entre extremos ($k_e={ke}$)"
+    )
+
+    ax.set_xlabel("Número de monómeros, N")
+    ax.set_ylabel(
+        r"$R_{ee,\mathrm{rms}}=\sqrt{\langle R_{ee}^2\rangle}$"
+    )
+
+    ax.grid(True, which="both", alpha=0.3)
+    ax.legend(loc="upper left", fontsize=9)
+
+    fig.tight_layout()
+
+    salida2 = (
+        carpeta /
+        f"Ree_rms_vs_N_ke{ke}_loglog_Claudia.png"
+    )
+
+    if not salida2.exists():
+        fig.savefig(
+            salida2,
+            dpi=300,
+            bbox_inches="tight"
+        )
+        print("Guardada:", salida2.name)
+    else:
+        print("Ya existe, no se sobrescribe:", salida2.name)
+
+    plt.show()
+    plt.close(fig)
+
+    # --------------------------------------------------------
+    # GUARDAR TABLA DE DISTANCIAS ENTRE EXTREMOS
+    # --------------------------------------------------------
+
+    Ree_teor_puntos = np.sqrt(
+        (N - 1)*b2
+    )
+
+    tabla = np.column_stack([
+        N,
+        Ree,
+        Ree_teor_puntos
+    ])
+
+    salida_csv = (
+        carpeta /
+        f"Ree_rms_vs_N_ke{ke}_resultados_Claudia.csv"
+    )
+
+    if not salida_csv.exists():
+
+        np.savetxt(
+            salida_csv,
+            tabla,
+            delimiter=",",
+            header="N,Ree_rms,Ree_rms_teorica",
+            comments="",
+            fmt=["%d", "%.8f", "%.8f"]
+        )
+
+        print("Tabla guardada:", salida_csv.name)
+    else:
+        print("La tabla ya existe. No se sobrescribe.")
+
+    return A, nu, error_nu, R2
+
+
+# ============================================================
+# 2. EJECUTAR LOS AJUSTES INDIVIDUALES
+# ============================================================
+
+resultado_100 = analizar_distancia_extremos(100)
+resultado_1000 = analizar_distancia_extremos(1000)
+
+print("\n========== RESUMEN FINAL ==========")
+
+for ke, resultado in [
+    (100, resultado_100),
+    (1000, resultado_1000)
+]:
+
+    A, nu, error_nu, R2 = resultado
+
+    print(
+        f"ke={ke}: "
+        f"nu={nu:.5f} +/- {error_nu:.5f}, "
+        f"R²={R2:.5f}"
+    )
+
+print("\nCuatro graficas de distancia entre extremos terminadas.")
+
+
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 3 - COMPARACION FINAL DE AMBAS RIGIDECES
+#
+# Radio de giro: sqrt(<Rg²>)
+# Distancia entre extremos: sqrt(<Ree²>)
+#
+# ke = 100 y ke = 1000
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+carpeta = base / "Py/plots/OBJETIVO_3/RG"
+
+kBT = 1.0
+l0 = 1.0
+
+colores = {
+    100: "tab:blue",
+    1000: "tab:orange"
+}
+
+resultados = {}
+
+# ============================================================
+# 1. LEER LOS DATOS Y CALCULAR LAS MAGNITUDES
+# ============================================================
+
+for ke in [100, 1000]:
+
+    archivo = (
+        carpeta / f"k{ke}" /
+        f"Resumen_Rg_Ree_ke{ke}_Claudia.csv"
+    )
+
+    if not archivo.exists():
+        raise FileNotFoundError(
+            f"No encuentro el CSV: {archivo}"
+        )
+
+    datos = np.genfromtxt(
+        archivo,
+        delimiter=",",
+        names=True,
+        encoding="utf-8-sig",
+        ndmin=1
+    )
+
+    N = np.asarray(datos["N"], dtype=float)
+    Rg2 = np.asarray(datos["Rg2_media"], dtype=float)
+    Ree2 = np.asarray(datos["Ree2_media"], dtype=float)
+
+    orden = np.argsort(N)
+
+    N = N[orden]
+    Rg2 = Rg2[orden]
+    Ree2 = Ree2[orden]
+
+    if np.any(Rg2 <= 0) or np.any(Ree2 <= 0):
+        raise ValueError(f"Valores invalidos para ke={ke}")
+
+    Rg = np.sqrt(Rg2)
+    Ree = np.sqrt(Ree2)
+
+    # Longitud cuadratica media teorica del enlace
+    sigma2 = kBT / ke
+
+    b2 = (
+        l0**4 + 6*l0**2*sigma2 + 3*sigma2**2
+    ) / (l0**2 + sigma2)
+
+    resultados[ke] = {
+        "N": N,
+        "Rg": Rg,
+        "Ree": Ree,
+        "b2": b2
+    }
+
+# Comprobar que ambas series usan los mismos tamaños
+if not np.array_equal(
+    resultados[100]["N"],
+    resultados[1000]["N"]
+):
+    raise ValueError("Los valores de N no coinciden.")
+
+N_suave = np.linspace(4, 64, 500)
+
+
+# ============================================================
+# 2. FUNCION PARA GENERAR LAS GRAFICAS
+# ============================================================
+
+def comparar_magnitud(magnitud, titulo, ylabel, nombre):
+
+    fig, ax = plt.subplots(figsize=(10, 6.5))
+
+    for ke in [100, 1000]:
+
+        r = resultados[ke]
+
+        N = r["N"]
+        y = r[magnitud]
+        b2 = r["b2"]
+        color = colores[ke]
+
+        # ----------------------------------------------------
+        # AJUSTE DE POTENCIA: y = A*N^nu
+        # ----------------------------------------------------
+
+        coef, cov = np.polyfit(
+            np.log(N),
+            np.log(y),
+            1,
+            cov=True
+        )
+
+        nu, log_A = coef
+        A = np.exp(log_A)
+        error_nu = np.sqrt(cov[0, 0])
+
+        y_ajuste = A * N_suave**nu
+
+        # ----------------------------------------------------
+        # PREDICCION TEORICA
+        # ----------------------------------------------------
+
+        if magnitud == "Rg":
+
+            y_teorica = np.sqrt(
+                (N_suave**2 - 1)*b2/(6*N_suave)
+            )
+
+        else:
+
+            y_teorica = np.sqrt(
+                (N_suave - 1)*b2
+            )
+
+        # ----------------------------------------------------
+        # PUNTOS DE SIMULACION
+        # ----------------------------------------------------
+
+        ax.plot(
+            N,
+            y,
+            "o",
+            color=color,
+            markersize=6,
+            label=rf"Simulación $k_e={ke}$",
+            zorder=3
+        )
+
+        # ----------------------------------------------------
+        # AJUSTE EXPERIMENTAL
+        # ----------------------------------------------------
+
+        ax.plot(
+            N_suave,
+            y_ajuste,
+            color=color,
+            linewidth=1.8,
+            label=(
+                rf"Ajuste $k_e={ke}$: "
+                rf"$\nu={nu:.4f}\pm{error_nu:.4f}$"
+            )
+        )
+
+        # ----------------------------------------------------
+        # TEORIA
+        # ----------------------------------------------------
+
+        ax.plot(
+            N_suave,
+            y_teorica,
+            "--",
+            color=color,
+            linewidth=1.5,
+            alpha=0.8,
+            label=rf"Teoría $k_e={ke}$"
+        )
+
+        print(
+            f"{magnitud}, ke={ke}: "
+            f"A={A:.6f}, "
+            f"nu={nu:.6f} +/- {error_nu:.6f}"
+        )
+
+    # ========================================================
+    # FORMATO DE LA GRAFICA
+    # ========================================================
+
+    ax.set_title(titulo, fontsize=14)
+    ax.set_xlabel("Número de monómeros, N")
+    ax.set_ylabel(ylabel)
+
+    ax.set_xlim(2, 67)
+    ax.grid(alpha=0.3)
+
+    ax.legend(
+        loc="upper left",
+        fontsize=9,
+        ncol=2
+    )
+
+    fig.tight_layout()
+
+    salida = carpeta / nombre
+
+    if salida.exists():
+        print(
+            f"El archivo {nombre} ya existe. "
+            "No se sobrescribe."
+        )
+    else:
+        fig.savefig(
+            salida,
+            dpi=300,
+            bbox_inches="tight"
+        )
+        print("Guardada:", salida)
+
+    plt.show()
+    plt.close(fig)
+
+
+# ============================================================
+# 3. COMPARACION DEL RADIO DE GIRO
+# ============================================================
+
+comparar_magnitud(
+    magnitud="Rg",
+    titulo="Comparación del radio de giro para ambas rigideces",
+    ylabel=r"$R_{g,\mathrm{rms}}=\sqrt{\langle R_g^2\rangle}$",
+    nombre="Comparacion_Rg_rms_ke100_ke1000_Claudia.png"
+)
+
+
+# ============================================================
+# 4. COMPARACION DE LA DISTANCIA ENTRE EXTREMOS
+# ============================================================
+
+comparar_magnitud(
+    magnitud="Ree",
+    titulo="Comparación de la distancia entre extremos",
+    ylabel=r"$R_{ee,\mathrm{rms}}=\sqrt{\langle R_{ee}^2\rangle}$",
+    nombre="Comparacion_Ree_rms_ke100_ke1000_Claudia.png"
+)
+
+print("\nLas dos comparaciones han terminado.")
+
+
+# %%
