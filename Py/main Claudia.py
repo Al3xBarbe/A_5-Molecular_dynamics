@@ -2920,3 +2920,2781 @@ print("\nTodas las graficas generadas correctamente.")
 
 
 # %%
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 3 - RADIO DE GIRO Y DISTANCIA ENTRE EXTREMOS
+# ke = 100 - SIMULACIONES CON TIEMPO AMPLIADO
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+# ============================================================
+# PARAMETROS
+# ============================================================
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+valores_N = [4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 64]
+
+ke = 100
+kBT = 1.0
+l0 = 1.0
+
+margen_relativo = 0.30
+mostrar_bloques = False
+
+# Carpetas
+carpeta_datos = (
+    base / "Py/plots/OBJETIVO_3/Datos/k100/RG"
+)
+
+carpeta_salida = (
+    base / "Py/plots/OBJETIVO_3/RG/k100"
+)
+
+carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+# ============================================================
+# VALORES TEORICOS
+# ============================================================
+
+sigma2 = kBT / ke
+
+b2 = (
+    l0**4 + 6*l0**2*sigma2 + 3*sigma2**2
+) / (l0**2 + sigma2)
+
+# ============================================================
+# GENERAR LAS GRAFICAS
+# ============================================================
+
+for N in valores_N:
+
+    archivo = (
+        carpeta_datos /
+        f"Rg_Ree_N{N}_ke{ke}.txt"
+    )
+
+    salida = (
+        carpeta_salida /
+        f"Rg_Ree_N{N}_ke{ke}_tiempo_ampliado.png"
+    )
+
+    if not archivo.is_file():
+        print(f"No se encuentra el TXT de N={N}. Se omite.")
+        continue
+
+    if salida.exists():
+        print(f"La gráfica de N={N} ya existe. Se omite.")
+        continue
+
+    # ========================================================
+    # 1. CARGAR DATOS
+    # ========================================================
+
+    datos = np.loadtxt(archivo, ndmin=2)
+
+    if datos.shape[1] != 5:
+        raise ValueError(
+            f"N={N}: se esperaban 5 columnas, "
+            f"pero hay {datos.shape[1]}"
+        )
+
+    t = datos[:, 0]
+
+    Rg2_m = datos[:, 1]
+    Ree2_m = datos[:, 2]
+
+    Rg2_bloques = datos[:, 3]
+    Ree2_bloques = datos[:, 4]
+
+    # ========================================================
+    # 2. VALORES TEORICOS
+    # ========================================================
+
+    Rg2_teor = (N**2 - 1) * b2 / (6*N)
+    Ree2_teor = (N - 1) * b2
+
+    # ========================================================
+    # 3. MOSTRAR RESULTADOS
+    # ========================================================
+
+    print(f"\n{'=' * 45}")
+    print(f"N = {N}, ke = {ke}")
+    print(f"Tiempo final de medición = {t[-1]:.0f}")
+    print(f"{'=' * 45}")
+
+    print(f"<Rg²> simulación = {Rg2_m[-1]:.6f}")
+    print(f"<Rg²> teórico    = {Rg2_teor:.6f}")
+
+    print(f"<Ree²> simulación = {Ree2_m[-1]:.6f}")
+    print(f"<Ree²> teórico    = {Ree2_teor:.6f}")
+
+    # ========================================================
+    # 4. CREAR FIGURA
+    # ========================================================
+
+    fig, axs = plt.subplots(
+        1, 2,
+        figsize=(15, 5.5)
+    )
+
+    series = [
+        (
+            Rg2_m,
+            Rg2_bloques,
+            Rg2_teor,
+            "Radio de giro al cuadrado",
+            r"$\langle R_g^2\rangle_t$",
+            "tab:blue",
+            rf"Cadena ideal: $\frac{{N^2-1}}{{6N}}b^2"
+            rf" = {Rg2_teor:.3f}$"
+        ),
+        (
+            Ree2_m,
+            Ree2_bloques,
+            Ree2_teor,
+            "Distancia entre extremos al cuadrado",
+            r"$\langle R_{ee}^2\rangle_t$",
+            "tab:green",
+            rf"Cadena ideal: $(N-1)b^2"
+            rf" = {Ree2_teor:.3f}$"
+        )
+    ]
+
+    for ax, (
+        media, bloques, teor, titulo,
+        ylabel, color, etiqueta
+    ) in zip(axs, series):
+
+        # Promedio acumulado
+        ax.plot(
+            t,
+            media,
+            color=color,
+            linewidth=1.5,
+            label="Promedio acumulado"
+        )
+
+        # Promedios por bloques, opcionales
+        if mostrar_bloques:
+            ax.plot(
+                t,
+                bloques,
+                color=color,
+                alpha=0.35,
+                linewidth=1,
+                label="Promedio por bloques"
+            )
+
+        # Valor teorico
+        ax.axhline(
+            teor,
+            color="black",
+            linestyle="--",
+            linewidth=1.1,
+            label=etiqueta
+        )
+
+        ax.set_title(titulo)
+        ax.set_xlabel("Tiempo de medición")
+        ax.set_ylabel(ylabel)
+
+        ax.grid(alpha=0.3)
+        ax.legend(loc="best", fontsize=9)
+
+        # Escala X automatica
+        ax.set_xlim(t[0], t[-1])
+
+        # Escala Y con margen
+        if mostrar_bloques:
+            minimo = min(np.min(media), np.min(bloques), teor)
+            maximo = max(np.max(media), np.max(bloques), teor)
+        else:
+            minimo = min(np.min(media), teor)
+            maximo = max(np.max(media), teor)
+
+        margen = max(
+            margen_relativo * (maximo - minimo),
+            0.05 * teor
+        )
+
+        ax.set_ylim(
+            max(0, minimo - margen),
+            maximo + margen
+        )
+
+    # ========================================================
+    # 5. TITULO Y GUARDADO
+    # ========================================================
+
+    fig.suptitle(
+        rf"Evolución del polímero ($N={N}$, $k_e={ke}$)",
+        fontsize=15
+    )
+
+    fig.tight_layout()
+
+    fig.savefig(
+        salida,
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.show()
+    plt.close(fig)
+
+    print(f"Gráfica guardada en: {salida}")
+
+print("\nTodas las gráficas disponibles se han generado.")
+
+
+
+# %%
+import numpy as np
+from pathlib import Path
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+carpeta = base / "Py/plots/OBJETIVO_3/Datos/k100/RG"
+
+for N in [4, 32, 64]:
+
+    archivo = carpeta / f"Rg_Ree_N{N}_ke100.txt"
+    datos = np.loadtxt(archivo, ndmin=2)
+
+    t = datos[:, 0]
+    rg2 = datos[:, 3]   # Medias por bloques
+    ree2 = datos[:, 4]
+
+    print(f"\n======== N = {N} ========")
+
+    # Dividir la medicion en cuatro partes
+    indices = np.array_split(np.arange(len(t)), 4)
+
+    for i, idx in enumerate(indices, 1):
+        print(
+            f"Bloque {i}: "
+            f"<Rg²> = {np.mean(rg2[idx]):.4f}  |  "
+            f"<Ree²> = {np.mean(ree2[idx]):.4f}"
+        )
+
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 3 - RADIO DE GIRO Y DISTANCIA ENTRE EXTREMOS
+# N = 64, ke = 100
+# Termalizacion: 40000
+# Medicion: 200000
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+# PARAMETROS
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+N = 64
+ke = 100
+kBT = 1.0
+l0 = 1.0
+
+margen_relativo = 0.30
+
+# CARPETAS
+carpeta_datos = base / "Py/plots/OBJETIVO_3/Datos/k100/RG"
+carpeta_salida = base / "Py/plots/OBJETIVO_3/RG/k100"
+
+carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+# ARCHIVO DE LA NUEVA SIMULACION
+archivo = carpeta_datos / "Rg_Ree_N64_ke100_T200000.txt"
+
+# Nombre diferente para conservar las graficas anteriores
+salida = carpeta_salida / "Rg_Ree_N64_ke100_T200000.png"
+
+if not archivo.is_file():
+    raise FileNotFoundError(f"No se encuentra: {archivo}")
+
+if salida.exists():
+    raise FileExistsError(
+        f"La grafica ya existe y no se sobrescribira: {salida}"
+    )
+
+# ============================================================
+# 1. CARGAR LOS DATOS
+# ============================================================
+
+datos = np.loadtxt(archivo, ndmin=2)
+
+if datos.shape[1] != 5:
+    raise ValueError("El TXT debe contener cinco columnas.")
+
+t = datos[:, 0]
+
+Rg2_m = datos[:, 1]
+Ree2_m = datos[:, 2]
+
+Rg2_bloques = datos[:, 3]
+Ree2_bloques = datos[:, 4]
+
+print(f"Tiempo final de medicion: {t[-1]:.0f}")
+
+if not np.isclose(t[-1], 200000):
+    print("AVISO: el archivo no llega a t = 200000.")
+
+# ============================================================
+# 2. VALORES TEORICOS
+# ============================================================
+
+sigma2 = kBT / ke
+
+b2 = (
+    l0**4 + 6*l0**2*sigma2 + 3*sigma2**2
+) / (l0**2 + sigma2)
+
+Rg2_teor = (N**2 - 1) * b2 / (6*N)
+Ree2_teor = (N - 1) * b2
+
+print("\n===== RESULTADOS FINALES =====")
+
+print(f"<Rg²> simulacion = {Rg2_m[-1]:.6f}")
+print(f"<Rg²> teorico    = {Rg2_teor:.6f}")
+
+print(f"<Ree²> simulacion = {Ree2_m[-1]:.6f}")
+print(f"<Ree²> teorico    = {Ree2_teor:.6f}")
+
+# ============================================================
+# 3. COMPROBAR LOS CUATRO BLOQUES TEMPORALES
+# ============================================================
+
+print("\n===== CONVERGENCIA POR BLOQUES =====")
+
+indices = np.array_split(np.arange(len(t)), 4)
+
+for i, idx in enumerate(indices, 1):
+
+    media_rg = np.mean(Rg2_bloques[idx])
+    media_ree = np.mean(Ree2_bloques[idx])
+
+    print(
+        f"Bloque {i}: "
+        f"<Rg²> = {media_rg:.4f}  |  "
+        f"<Ree²> = {media_ree:.4f}"
+    )
+
+# ============================================================
+# 4. CREAR LA FIGURA
+# ============================================================
+
+fig, axs = plt.subplots(
+    1, 2,
+    figsize=(15, 5.5)
+)
+
+series = [
+    (
+        Rg2_m,
+        Rg2_teor,
+        "Radio de giro al cuadrado",
+        r"$\langle R_g^2\rangle_t$",
+        "tab:blue",
+        rf"Cadena ideal: $\frac{{N^2-1}}{{6N}}b^2"
+        rf" = {Rg2_teor:.3f}$"
+    ),
+    (
+        Ree2_m,
+        Ree2_teor,
+        "Distancia entre extremos al cuadrado",
+        r"$\langle R_{ee}^2\rangle_t$",
+        "tab:green",
+        rf"Cadena ideal: $(N-1)b^2"
+        rf" = {Ree2_teor:.3f}$"
+    )
+]
+
+for ax, (media, teor, titulo, ylabel,
+         color, etiqueta) in zip(axs, series):
+
+    # Promedio acumulado
+    ax.plot(
+        t,
+        media,
+        color=color,
+        linewidth=1.5,
+        label="Promedio acumulado"
+    )
+
+    # Valor teorico
+    ax.axhline(
+        teor,
+        color="black",
+        linestyle="--",
+        linewidth=1.1,
+        label=etiqueta
+    )
+
+    ax.set_title(titulo)
+    ax.set_xlabel("Tiempo de medición")
+    ax.set_ylabel(ylabel)
+
+    ax.grid(alpha=0.3)
+    ax.legend(loc="best", fontsize=9)
+
+    ax.set_xlim(t[0], t[-1])
+
+    # Margen del eje Y
+    minimo = min(np.min(media), teor)
+    maximo = max(np.max(media), teor)
+
+    margen = max(
+        margen_relativo * (maximo - minimo),
+        0.05 * teor
+    )
+
+    ax.set_ylim(
+        max(0, minimo - margen),
+        maximo + margen
+    )
+
+# ============================================================
+# 5. TITULO Y GUARDADO
+# ============================================================
+
+fig.suptitle(
+    rf"Evolución del polímero ($N={N}$, $k_e={ke}$)",
+    fontsize=15
+)
+
+fig.tight_layout()
+
+fig.savefig(
+    salida,
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.show()
+plt.close(fig)
+
+print(f"\nGrafica guardada en: {salida}")
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 3 - RADIO DE GIRO
+# AJUSTE LINEAL Y LOG-LOG
+# ke = 100
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+# ============================================================
+# 1. PARAMETROS
+# ============================================================
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+valores_N = np.array(
+    [4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 64]
+)
+
+ke = 100
+kBT = 1.0
+l0 = 1.0
+
+# Valor minimo de N incluido en los ajustes
+N_ajuste_min = 4
+
+# Carpetas
+carpeta_datos = base / "Py/plots/OBJETIVO_3/Datos/k100/RG"
+carpeta_salida = base / "Py/plots/OBJETIVO_3/RG/k100"
+
+carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+salida_lineal = (
+    carpeta_salida /
+    "Rg2_vs_N_ke100_lineal_sin_errores.png"
+)
+
+salida_loglog = (
+    carpeta_salida /
+    "Rg2_vs_N_ke100_loglog_sin_errores.png"
+)
+
+# Proteger graficas anteriores
+for salida in [salida_lineal, salida_loglog]:
+    if salida.exists():
+        raise FileExistsError(
+            f"El archivo ya existe: {salida}"
+        )
+
+# ============================================================
+# 2. LEER LOS DATOS DE LAS 13 SIMULACIONES
+# ============================================================
+
+Rg2_medios = []
+
+for N in valores_N:
+
+    if N == 64:
+        nombre = "Rg_Ree_N64_ke100_T200000.txt"
+    else:
+        nombre = f"Rg_Ree_N{N}_ke100.txt"
+
+    archivo = carpeta_datos / nombre
+
+    if not archivo.is_file():
+        raise FileNotFoundError(
+            f"No se encuentra: {archivo}"
+        )
+
+    datos = np.loadtxt(archivo, ndmin=2)
+
+    if datos.shape[1] != 5:
+        raise ValueError(
+            f"El archivo N={N} no tiene cinco columnas."
+        )
+
+    # Media acumulada final de Rg²
+    media = datos[-1, 1]
+
+    if not np.isfinite(media) or media <= 0:
+        raise ValueError(
+            f"Valor invalido de Rg² para N={N}"
+        )
+
+    Rg2_medios.append(media)
+
+    print(
+        f"N={N:2d}  |  "
+        f"Tiempo={datos[-1,0]:.0f}  |  "
+        f"<Rg²>={media:.6f}"
+    )
+
+Rg2_medios = np.array(Rg2_medios)
+
+# Puntos que entran en los ajustes
+mascara_ajuste = valores_N >= N_ajuste_min
+
+N_fit = valores_N[mascara_ajuste]
+Rg2_fit = Rg2_medios[mascara_ajuste]
+
+# ============================================================
+# 3. PREDICCION TEORICA DE LA CADENA IDEAL
+# ============================================================
+
+sigma2 = kBT / ke
+
+# Longitud cuadratica media del enlace
+b2 = (
+    l0**4 + 6*l0**2*sigma2 + 3*sigma2**2
+) / (l0**2 + sigma2)
+
+# Formula teorica completa para N finito
+N_suave = np.linspace(4, 64, 500)
+
+Rg2_teor = (
+    (N_suave**2 - 1)
+    / (6 * N_suave)
+    * b2
+)
+
+# Pendiente asintotica teorica
+m_teor = b2 / 6
+
+# ============================================================
+# 4. AJUSTE LINEAL
+# <Rg²> = m*N + c
+# ============================================================
+
+coef_lineal, cov_lineal = np.polyfit(
+    N_fit,
+    Rg2_fit,
+    1,
+    cov=True
+)
+
+m, c = coef_lineal
+
+error_m = np.sqrt(cov_lineal[0, 0])
+error_c = np.sqrt(cov_lineal[1, 1])
+
+Rg2_pred = m*N_fit + c
+
+SS_res = np.sum((Rg2_fit - Rg2_pred)**2)
+SS_tot = np.sum((Rg2_fit - np.mean(Rg2_fit))**2)
+
+R2_lineal = 1 - SS_res/SS_tot
+
+print("\n========== AJUSTE LINEAL ==========")
+
+print(f"Pendiente = {m:.6f} +/- {error_m:.6f}")
+print(f"Ordenada  = {c:.6f} +/- {error_c:.6f}")
+print(f"R²       = {R2_lineal:.6f}")
+
+print(f"Pendiente teorica = {m_teor:.6f}")
+
+# ============================================================
+# 5. GRAFICA DEL AJUSTE LINEAL
+# ============================================================
+
+fig, ax = plt.subplots(figsize=(9, 6))
+
+# Puntos de simulacion SIN barras de error
+ax.plot(
+    valores_N,
+    Rg2_medios,
+    "o",
+    color="tab:blue",
+    markersize=6,
+    label="Simulación"
+)
+
+# Ajuste lineal
+ax.plot(
+    N_suave,
+    m*N_suave+c,
+    color="tab:red",
+    linewidth=1.7,
+    label=(
+        rf"Ajuste: $\langle R_g^2\rangle = "
+        rf"({m:.4f}\pm{error_m:.4f})N"
+        rf"{c:+.4f}$"
+        "\n"
+        rf"$R^2={R2_lineal:.5f}$"
+    )
+)
+
+# Prediccion teorica
+ax.plot(
+    N_suave,
+    Rg2_teor,
+    color="black",
+    linestyle="--",
+    linewidth=1.5,
+    label=(
+        r"Cadena ideal: "
+        r"$\langle R_g^2\rangle="
+        r"\frac{N^2-1}{6N}b^2$"
+    )
+)
+
+ax.set_title(
+    rf"Radio de giro frente a $N$ ($k_e={ke}$)",
+    fontsize=14
+)
+
+ax.set_xlabel("Número de monómeros, N")
+ax.set_ylabel(r"$\langle R_g^2\rangle$")
+
+ax.grid(alpha=0.3)
+ax.legend(loc="upper left", fontsize=9)
+
+ax.set_xlim(2, 67)
+
+fig.tight_layout()
+
+fig.savefig(
+    salida_lineal,
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.show()
+plt.close(fig)
+
+# ============================================================
+# 6. AJUSTE LOG-LOG
+#
+# <Rg²> = A*N^(2*nu)
+#
+# log(<Rg²>) = log(A) + 2*nu*log(N)
+# ============================================================
+
+log_N = np.log(N_fit)
+log_Rg2 = np.log(Rg2_fit)
+
+coef_log, cov_log = np.polyfit(
+    log_N,
+    log_Rg2,
+    1,
+    cov=True
+)
+
+alpha, log_A = coef_log
+
+error_alpha = np.sqrt(cov_log[0, 0])
+
+# Exponente de escala
+nu = alpha / 2
+error_nu = error_alpha / 2
+
+# Prefactor
+A = np.exp(log_A)
+
+# Coeficiente de determinacion en escala logaritmica
+log_pred = alpha*log_N + log_A
+
+SS_res_log = np.sum((log_Rg2-log_pred)**2)
+SS_tot_log = np.sum(
+    (log_Rg2-np.mean(log_Rg2))**2
+)
+
+R2_log = 1 - SS_res_log/SS_tot_log
+
+print("\n========== AJUSTE LOG-LOG ==========")
+
+print(f"Pendiente 2*nu = {alpha:.6f}")
+print(f"Exponente nu   = {nu:.6f} +/- {error_nu:.6f}")
+print(f"Prefactor A    = {A:.6f}")
+print(f"R² log-log     = {R2_log:.6f}")
+
+print("\nValor teorico esperado: nu = 0.5")
+
+# ============================================================
+# 7. GRAFICA LOG-LOG
+# ============================================================
+
+fig, ax = plt.subplots(figsize=(9, 6))
+
+# Puntos de simulacion
+ax.plot(
+    valores_N,
+    Rg2_medios,
+    "o",
+    color="tab:blue",
+    markersize=6,
+    label="Simulación"
+)
+
+# Ajuste de ley de potencia
+ax.plot(
+    N_suave,
+    A*N_suave**alpha,
+    color="tab:red",
+    linewidth=1.7,
+    label=(
+        rf"Ajuste: $\langle R_g^2\rangle"
+        rf"={A:.4f}N^{{{alpha:.4f}}}$"
+        "\n"
+        rf"$\nu={nu:.4f}\pm{error_nu:.4f}$"
+        "\n"
+        rf"$R^2={R2_log:.5f}$"
+    )
+)
+
+# Prediccion teorica
+ax.plot(
+    N_suave,
+    Rg2_teor,
+    color="black",
+    linestyle="--",
+    linewidth=1.5,
+    label="Cadena ideal"
+)
+
+# Escalas logaritmicas
+ax.set_xscale("log")
+ax.set_yscale("log")
+
+ax.set_title(
+    rf"Ajuste log-log del radio de giro ($k_e={ke}$)",
+    fontsize=14
+)
+
+ax.set_xlabel(r"$N$")
+ax.set_ylabel(r"$\langle R_g^2\rangle$")
+
+ax.grid(
+    True,
+    which="both",
+    alpha=0.3
+)
+
+ax.legend(loc="upper left", fontsize=9)
+
+fig.tight_layout()
+
+fig.savefig(
+    salida_loglog,
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.show()
+plt.close(fig)
+
+# ============================================================
+# 8. RESUMEN FINAL
+# ============================================================
+
+print("\n========== RESUMEN ==========")
+print(f"Pendiente lineal = {m:.6f}")
+print(f"R² lineal        = {R2_lineal:.6f}")
+print(f"Exponente nu     = {nu:.6f} +/- {error_nu:.6f}")
+print(f"R² log-log       = {R2_log:.6f}")
+
+print("\nGraficas guardadas:")
+print(salida_lineal)
+print(salida_loglog)
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 3 - RADIO DE GIRO
+# AJUSTE LINEAL Y LOG-LOG
+# ke = 100
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+# ============================================================
+# 1. PARAMETROS
+# ============================================================
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+valores_N = np.array(
+    [4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 64]
+)
+
+ke = 100
+kBT = 1.0
+l0 = 1.0
+
+# Valor minimo de N incluido en los ajustes
+N_ajuste_min = 4
+
+# Carpetas
+carpeta_datos = base / "Py/plots/OBJETIVO_3/Datos/k100/RG"
+carpeta_salida = base / "Py/plots/OBJETIVO_3/RG/k100"
+
+carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+salida_lineal = (
+    carpeta_salida /
+    "Rg2_vs_N_ke100_lineal_sin_errores.png"
+)
+
+salida_loglog = (
+    carpeta_salida /
+    "Rg2_vs_N_ke100_loglog_sin_errores.png"
+)
+
+# Proteger graficas anteriores
+for salida in [salida_lineal, salida_loglog]:
+    if salida.exists():
+        raise FileExistsError(
+            f"El archivo ya existe: {salida}"
+        )
+
+# ============================================================
+# 2. LEER LOS DATOS DE LAS 13 SIMULACIONES
+# ============================================================
+
+Rg2_medios = []
+
+for N in valores_N:
+
+    if N == 64:
+        nombre = "Rg_Ree_N64_ke100_T200000.txt"
+    else:
+        nombre = f"Rg_Ree_N{N}_ke100.txt"
+
+    archivo = carpeta_datos / nombre
+
+    if not archivo.is_file():
+        raise FileNotFoundError(
+            f"No se encuentra: {archivo}"
+        )
+
+    datos = np.loadtxt(archivo, ndmin=2)
+
+    if datos.shape[1] != 5:
+        raise ValueError(
+            f"El archivo N={N} no tiene cinco columnas."
+        )
+
+    # Media acumulada final de Rg²
+    media = datos[-1, 1]
+
+    if not np.isfinite(media) or media <= 0:
+        raise ValueError(
+            f"Valor invalido de Rg² para N={N}"
+        )
+
+    Rg2_medios.append(media)
+
+    print(
+        f"N={N:2d}  |  "
+        f"Tiempo={datos[-1,0]:.0f}  |  "
+        f"<Rg²>={media:.6f}"
+    )
+
+Rg2_medios = np.array(Rg2_medios)
+
+# Puntos que entran en los ajustes
+mascara_ajuste = valores_N >= N_ajuste_min
+
+N_fit = valores_N[mascara_ajuste]
+Rg2_fit = Rg2_medios[mascara_ajuste]
+
+# ============================================================
+# 3. PREDICCION TEORICA DE LA CADENA IDEAL
+# ============================================================
+
+sigma2 = kBT / ke
+
+# Longitud cuadratica media del enlace
+b2 = (
+    l0**4 + 6*l0**2*sigma2 + 3*sigma2**2
+) / (l0**2 + sigma2)
+
+# Formula teorica completa para N finito
+N_suave = np.linspace(4, 64, 500)
+
+Rg2_teor = (
+    (N_suave**2 - 1)
+    / (6 * N_suave)
+    * b2
+)
+
+# Pendiente asintotica teorica
+m_teor = b2 / 6
+
+# ============================================================
+# 4. AJUSTE LINEAL
+# <Rg²> = m*N + c
+# ============================================================
+
+coef_lineal, cov_lineal = np.polyfit(
+    N_fit,
+    Rg2_fit,
+    1,
+    cov=True
+)
+
+m, c = coef_lineal
+
+error_m = np.sqrt(cov_lineal[0, 0])
+error_c = np.sqrt(cov_lineal[1, 1])
+
+Rg2_pred = m*N_fit + c
+
+SS_res = np.sum((Rg2_fit - Rg2_pred)**2)
+SS_tot = np.sum((Rg2_fit - np.mean(Rg2_fit))**2)
+
+R2_lineal = 1 - SS_res/SS_tot
+
+print("\n========== AJUSTE LINEAL ==========")
+
+print(f"Pendiente = {m:.6f} +/- {error_m:.6f}")
+print(f"Ordenada  = {c:.6f} +/- {error_c:.6f}")
+print(f"R²       = {R2_lineal:.6f}")
+
+print(f"Pendiente teorica = {m_teor:.6f}")
+
+# ============================================================
+# 5. GRAFICA DEL AJUSTE LINEAL
+# ============================================================
+
+fig, ax = plt.subplots(figsize=(9, 6))
+
+# Puntos de simulacion SIN barras de error
+ax.plot(
+    valores_N,
+    Rg2_medios,
+    "o",
+    color="tab:blue",
+    markersize=6,
+    label="Simulación"
+)
+
+# Ajuste lineal
+ax.plot(
+    N_suave,
+    m*N_suave+c,
+    color="tab:red",
+    linewidth=1.7,
+    label=(
+        rf"Ajuste: $\langle R_g^2\rangle = "
+        rf"({m:.4f}\pm{error_m:.4f})N"
+        rf"{c:+.4f}$"
+        "\n"
+        rf"$R^2={R2_lineal:.5f}$"
+    )
+)
+
+# Prediccion teorica
+ax.plot(
+    N_suave,
+    Rg2_teor,
+    color="black",
+    linestyle="--",
+    linewidth=1.5,
+    label=(
+        r"Cadena ideal: "
+        r"$\langle R_g^2\rangle="
+        r"\frac{N^2-1}{6N}b^2$"
+    )
+)
+
+ax.set_title(
+    rf"Radio de giro frente a $N$ ($k_e={ke}$)",
+    fontsize=14
+)
+
+ax.set_xlabel("Número de monómeros, N")
+ax.set_ylabel(r"$\langle R_g^2\rangle$")
+
+ax.grid(alpha=0.3)
+ax.legend(loc="upper left", fontsize=9)
+
+ax.set_xlim(2, 67)
+
+fig.tight_layout()
+
+fig.savefig(
+    salida_lineal,
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.show()
+plt.close(fig)
+
+# ============================================================
+# 6. AJUSTE LOG-LOG
+#
+# <Rg²> = A*N^(2*nu)
+#
+# log(<Rg²>) = log(A) + 2*nu*log(N)
+# ============================================================
+
+log_N = np.log(N_fit)
+log_Rg2 = np.log(Rg2_fit)
+
+coef_log, cov_log = np.polyfit(
+    log_N,
+    log_Rg2,
+    1,
+    cov=True
+)
+
+alpha, log_A = coef_log
+
+error_alpha = np.sqrt(cov_log[0, 0])
+
+# Exponente de escala
+nu = alpha / 2
+error_nu = error_alpha / 2
+
+# Prefactor
+A = np.exp(log_A)
+
+# Coeficiente de determinacion en escala logaritmica
+log_pred = alpha*log_N + log_A
+
+SS_res_log = np.sum((log_Rg2-log_pred)**2)
+SS_tot_log = np.sum(
+    (log_Rg2-np.mean(log_Rg2))**2
+)
+
+R2_log = 1 - SS_res_log/SS_tot_log
+
+print("\n========== AJUSTE LOG-LOG ==========")
+
+print(f"Pendiente 2*nu = {alpha:.6f}")
+print(f"Exponente nu   = {nu:.6f} +/- {error_nu:.6f}")
+print(f"Prefactor A    = {A:.6f}")
+print(f"R² log-log     = {R2_log:.6f}")
+
+print("\nValor teorico esperado: nu = 0.5")
+
+# ============================================================
+# 7. GRAFICA LOG-LOG
+# ============================================================
+
+fig, ax = plt.subplots(figsize=(9, 6))
+
+# Puntos de simulacion
+ax.plot(
+    valores_N,
+    Rg2_medios,
+    "o",
+    color="tab:blue",
+    markersize=6,
+    label="Simulación"
+)
+
+# Ajuste de ley de potencia
+ax.plot(
+    N_suave,
+    A*N_suave**alpha,
+    color="tab:red",
+    linewidth=1.7,
+    label=(
+        rf"Ajuste: $\langle R_g^2\rangle"
+        rf"={A:.4f}N^{{{alpha:.4f}}}$"
+        "\n"
+        rf"$\nu={nu:.4f}\pm{error_nu:.4f}$"
+        "\n"
+        rf"$R^2={R2_log:.5f}$"
+    )
+)
+
+# Prediccion teorica
+ax.plot(
+    N_suave,
+    Rg2_teor,
+    color="black",
+    linestyle="--",
+    linewidth=1.5,
+    label="Cadena ideal"
+)
+
+# Escalas logaritmicas
+ax.set_xscale("log")
+ax.set_yscale("log")
+
+ax.set_title(
+    rf"Ajuste log-log del radio de giro ($k_e={ke}$)",
+    fontsize=14
+)
+
+ax.set_xlabel(r"$N$")
+ax.set_ylabel(r"$\langle R_g^2\rangle$")
+
+ax.grid(
+    True,
+    which="both",
+    alpha=0.3
+)
+
+ax.legend(loc="upper left", fontsize=9)
+
+fig.tight_layout()
+
+fig.savefig(
+    salida_loglog,
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.show()
+plt.close(fig)
+
+# ============================================================
+# 8. RESUMEN FINAL
+# ============================================================
+
+print("\n========== RESUMEN ==========")
+print(f"Pendiente lineal = {m:.6f}")
+print(f"R² lineal        = {R2_lineal:.6f}")
+print(f"Exponente nu     = {nu:.6f} +/- {error_nu:.6f}")
+print(f"R² log-log       = {R2_log:.6f}")
+
+print("\nGraficas guardadas:")
+print(salida_lineal)
+print(salida_loglog)
+
+
+# %%
+
+# %%
+# ============================================================
+# OBJETIVO 3 - DISTANCIA ENTRE EXTREMOS
+# AJUSTE LINEAL Y LOG-LOG
+# ke = 100
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+# ============================================================
+# 1. PARAMETROS Y CARPETAS
+# ============================================================
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+valores_N = np.array(
+    [4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 64]
+)
+
+ke = 100
+kBT = 1.0
+l0 = 1.0
+
+carpeta_datos = base / "Py/plots/OBJETIVO_3/Datos/k100/RG"
+carpeta_salida = base / "Py/plots/OBJETIVO_3/RG/k100"
+
+carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+salida_lineal = (
+    carpeta_salida / "Ree2_vs_N_ke100_lineal_Claudia.png"
+)
+
+salida_loglog = (
+    carpeta_salida / "Ree2_vs_N_ke100_loglog_Claudia.png"
+)
+
+# ============================================================
+# 2. CARGAR LOS DATOS
+# ============================================================
+
+Ree2_medios = []
+Rg2_medios = []
+
+for N in valores_N:
+
+    if N == 64:
+        nombre = "Rg_Ree_N64_ke100_T200000.txt"
+        tiempo_esperado = 200000
+    else:
+        nombre = f"Rg_Ree_N{N}_ke100.txt"
+        tiempo_esperado = 100000
+
+    archivo = carpeta_datos / nombre
+
+    if not archivo.is_file():
+        raise FileNotFoundError(
+            f"No se encuentra: {archivo}"
+        )
+
+    datos = np.loadtxt(archivo, ndmin=2)
+
+    if datos.shape[1] != 5:
+        raise ValueError(
+            f"N={N}: el TXT no tiene cinco columnas."
+        )
+
+    if not np.isclose(datos[-1, 0], tiempo_esperado):
+        raise ValueError(
+            f"N={N}: el tiempo final no coincide "
+            f"con el esperado."
+        )
+
+    # Columna 2: radio de giro al cuadrado
+    # Columna 3: distancia entre extremos al cuadrado
+
+    Rg2_medios.append(datos[-1, 1])
+    Ree2_medios.append(datos[-1, 2])
+
+    print(
+        f"N={N:2d} | "
+        f"<Ree²>={datos[-1, 2]:.6f}"
+    )
+
+Rg2_medios = np.array(Rg2_medios)
+Ree2_medios = np.array(Ree2_medios)
+
+# ============================================================
+# 3. VALORES TEORICOS
+# ============================================================
+
+sigma2 = kBT / ke
+
+b2 = (
+    l0**4 + 6*l0**2*sigma2 + 3*sigma2**2
+) / (l0**2 + sigma2)
+
+N_suave = np.linspace(4, 64, 500)
+
+Ree2_teor = (N_suave - 1) * b2
+
+print("\nLongitud cuadratica media del enlace:")
+print(f"b² = {b2:.6f}")
+
+# ============================================================
+# 4. AJUSTE LINEAL
+#
+# <Ree²> = m*N + c
+# Teoria: m = b², c = -b²
+# ============================================================
+
+coef, cov = np.polyfit(
+    valores_N,
+    Ree2_medios,
+    1,
+    cov=True
+)
+
+m, c = coef
+
+error_m = np.sqrt(cov[0, 0])
+error_c = np.sqrt(cov[1, 1])
+
+Ree2_ajuste = m*valores_N + c
+
+SS_res = np.sum(
+    (Ree2_medios - Ree2_ajuste)**2
+)
+
+SS_tot = np.sum(
+    (Ree2_medios - np.mean(Ree2_medios))**2
+)
+
+R2_lineal = 1 - SS_res/SS_tot
+
+print("\n========== AJUSTE LINEAL ==========")
+
+print(f"Pendiente = {m:.6f} +/- {error_m:.6f}")
+print(f"Ordenada  = {c:.6f} +/- {error_c:.6f}")
+print(f"R²       = {R2_lineal:.6f}")
+
+print("\nPrediccion teorica:")
+print(f"Pendiente = {b2:.6f}")
+print(f"Ordenada  = {-b2:.6f}")
+
+# ============================================================
+# 5. GRAFICA LINEAL
+# ============================================================
+
+fig, ax = plt.subplots(figsize=(9, 6))
+
+# Puntos de simulacion
+ax.plot(
+    valores_N,
+    Ree2_medios,
+    "o",
+    color="tab:blue",
+    markersize=6,
+    label="Simulación"
+)
+
+# Ajuste
+ax.plot(
+    N_suave,
+    m*N_suave + c,
+    color="tab:red",
+    linewidth=1.8,
+    label=(
+        rf"Ajuste: $\langle R_{{ee}}^2\rangle="
+        rf"({m:.4f}\pm{error_m:.4f})N{c:+.4f}$"
+        "\n"
+        rf"$R^2={R2_lineal:.5f}$"
+    )
+)
+
+# Prediccion teorica
+ax.plot(
+    N_suave,
+    Ree2_teor,
+    color="black",
+    linestyle="--",
+    linewidth=1.5,
+    label=(
+        r"Cadena ideal: "
+        r"$\langle R_{ee}^2\rangle=(N-1)b^2$"
+    )
+)
+
+ax.set_title(
+    rf"Distancia entre extremos al cuadrado ($k_e={ke}$)",
+    fontsize=14
+)
+
+ax.set_xlabel("Número de monómeros, N")
+ax.set_ylabel(r"$\langle R_{ee}^2\rangle$")
+
+ax.grid(alpha=0.3)
+ax.legend(loc="upper left", fontsize=9)
+ax.set_xlim(2, 67)
+
+fig.tight_layout()
+
+if salida_lineal.exists():
+    print("La grafica lineal ya existe; no se sobrescribe.")
+else:
+    fig.savefig(
+        salida_lineal,
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+plt.show()
+plt.close(fig)
+
+# ============================================================
+# 6. AJUSTE LOG-LOG
+#
+# <Ree²> = A*N^(2*nu)
+# ============================================================
+
+log_N = np.log(valores_N)
+log_Ree2 = np.log(Ree2_medios)
+
+coef_log, cov_log = np.polyfit(
+    log_N,
+    log_Ree2,
+    1,
+    cov=True
+)
+
+alpha, log_A = coef_log
+
+error_alpha = np.sqrt(cov_log[0, 0])
+
+nu = alpha / 2
+error_nu = error_alpha / 2
+
+A = np.exp(log_A)
+
+log_ajuste = alpha*log_N + log_A
+
+SS_res_log = np.sum(
+    (log_Ree2 - log_ajuste)**2
+)
+
+SS_tot_log = np.sum(
+    (log_Ree2 - np.mean(log_Ree2))**2
+)
+
+R2_log = 1 - SS_res_log/SS_tot_log
+
+# Pendiente aparente de la teoria finita
+alpha_teor_finito = np.polyfit(
+    log_N,
+    np.log((valores_N - 1)*b2),
+    1
+)[0]
+
+print("\n========== AJUSTE LOG-LOG ==========")
+
+print(f"Pendiente 2*nu = {alpha:.6f}")
+print(f"Exponente nu   = {nu:.6f} +/- {error_nu:.6f}")
+print(f"Prefactor A    = {A:.6f}")
+print(f"R² log-log     = {R2_log:.6f}")
+
+print(
+    f"nu aparente de la teoria finita = "
+    f"{alpha_teor_finito/2:.6f}"
+)
+
+print("nu asintotico teorico = 0.500000")
+
+# ============================================================
+# 7. GRAFICA LOG-LOG
+# ============================================================
+
+fig, ax = plt.subplots(figsize=(9, 6))
+
+# Puntos
+ax.plot(
+    valores_N,
+    Ree2_medios,
+    "o",
+    color="tab:blue",
+    markersize=6,
+    label="Simulación"
+)
+
+# Ley de potencia ajustada
+ax.plot(
+    N_suave,
+    A*N_suave**alpha,
+    color="tab:red",
+    linewidth=1.8,
+    label=(
+        rf"Ajuste: $\langle R_{{ee}}^2\rangle"
+        rf"={A:.4f}N^{{{alpha:.4f}}}$"
+        "\n"
+        rf"$\nu={nu:.4f}\pm{error_nu:.4f}$"
+        "\n"
+        rf"$R^2={R2_log:.5f}$"
+    )
+)
+
+# Teoria exacta para N finito
+ax.plot(
+    N_suave,
+    Ree2_teor,
+    color="black",
+    linestyle="--",
+    linewidth=1.5,
+    label="Cadena ideal"
+)
+
+ax.set_xscale("log")
+ax.set_yscale("log")
+
+ax.set_title(
+    rf"Ajuste log-log de la distancia entre extremos ($k_e={ke}$)",
+    fontsize=14
+)
+
+ax.set_xlabel(r"$N$")
+ax.set_ylabel(r"$\langle R_{ee}^2\rangle$")
+
+ax.grid(True, which="both", alpha=0.3)
+ax.legend(loc="upper left", fontsize=9)
+
+fig.tight_layout()
+
+if salida_loglog.exists():
+    print("La grafica log-log ya existe; no se sobrescribe.")
+else:
+    fig.savefig(
+        salida_loglog,
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+plt.show()
+plt.close(fig)
+
+# ============================================================
+# 8. COMPROBACION DE LA RELACION CON EL RADIO DE GIRO
+# ============================================================
+
+print("\n========== RELACION Ree² / Rg² ==========")
+
+for N, ree2, rg2 in zip(
+    valores_N,
+    Ree2_medios,
+    Rg2_medios
+):
+
+    razon_sim = ree2 / rg2
+    razon_teor = 6*N/(N+1)
+
+    print(
+        f"N={N:2d} | "
+        f"Simulacion={razon_sim:.4f} | "
+        f"Teoria={razon_teor:.4f}"
+    )
+
+print("\nGraficas:")
+print(salida_lineal)
+print(salida_loglog)
+
+# %%
+
+# %%
+# ============================================================
+# OBJETIVO 3 - RADIO DE GIRO Y DISTANCIA ENTRE EXTREMOS
+# ke = 1000
+# EVOLUCION TEMPORAL PARA TODOS LOS N
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+# ============================================================
+# 1. PARAMETROS
+# ============================================================
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+valores_N = [4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 64]
+
+ke = 1000
+kBT = 1.0
+l0 = 1.0
+
+# Configuracion de las graficas
+margen_relativo = 0.30
+
+# Cambiar a True para representar tambien las medias por bloques
+mostrar_bloques = False
+
+# Tiempo inicial que se muestra en el eje horizontal
+t_inicio_grafica = 0
+
+# ============================================================
+# 2. CARPETAS
+# ============================================================
+
+carpeta_datos = (
+    base / "Py/plots/OBJETIVO_3/Datos/k1000/RG"
+)
+
+carpeta_salida = (
+    base / "Py/plots/OBJETIVO_3/RG/k1000"
+)
+
+carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+# ============================================================
+# 3. VALORES TEORICOS
+# ============================================================
+
+# Fluctuaciones de longitud de los enlaces
+sigma2 = kBT / ke
+
+# Longitud cuadratica media del enlace (aproximacion 3D)
+b2 = (
+    l0**4 + 6*l0**2*sigma2 + 3*sigma2**2
+) / (l0**2 + sigma2)
+
+print(f"Longitud cuadratica media del enlace: b² = {b2:.6f}")
+
+# ============================================================
+# 4. RECORRER TODOS LOS TAMANOS
+# ============================================================
+
+for N in valores_N:
+
+    archivo = (
+        carpeta_datos /
+        f"Rg_Ree_N{N}_ke{ke}.txt"
+    )
+
+    salida = (
+        carpeta_salida /
+        f"Rg_Ree_N{N}_ke{ke}_evolucion.png"
+    )
+
+    # Comprobar existencia del TXT
+    if not archivo.is_file():
+        print(f"No se encuentra el archivo de N={N}")
+        continue
+
+    # Evitar sobrescribir graficas anteriores
+    if salida.exists():
+        print(f"La grafica de N={N} ya existe. Se omite.")
+        continue
+
+    # ========================================================
+    # 5. LEER LOS DATOS
+    # ========================================================
+
+    datos = np.loadtxt(
+        archivo,
+        comments="#",
+        ndmin=2
+    )
+
+    if datos.shape[1] != 5:
+        raise ValueError(
+            f"N={N}: se esperaban 5 columnas, "
+            f"pero hay {datos.shape[1]}."
+        )
+
+    t = datos[:, 0]
+
+    Rg2_m = datos[:, 1]
+    Ree2_m = datos[:, 2]
+
+    Rg2_bloques = datos[:, 3]
+    Ree2_bloques = datos[:, 4]
+
+    # Tiempos de medicion utilizados en Fortran
+    if N == 64:
+        tiempo_esperado = 200000
+    elif N >= 40:
+        tiempo_esperado = 150000
+    else:
+        tiempo_esperado = 100000
+
+    if not np.isclose(t[-1], tiempo_esperado):
+        print(
+            f"N={N}: archivo posiblemente incompleto. "
+            f"Tiempo final = {t[-1]:.0f}, "
+            f"esperado = {tiempo_esperado}."
+        )
+        continue
+
+    # ========================================================
+    # 6. VALORES TEORICOS PARA ESTE N
+    # ========================================================
+
+    Rg2_teor = (N**2 - 1) * b2 / (6*N)
+
+    Ree2_teor = (N - 1) * b2
+
+    # ========================================================
+    # 7. MOSTRAR LOS RESULTADOS NUMERICOS
+    # ========================================================
+
+    print(f"\n{'=' * 48}")
+    print(f"N = {N}, ke = {ke}")
+    print(f"Tiempo de medicion = {t[-1]:.0f}")
+    print(f"{'=' * 48}")
+
+    print(f"<Rg²> simulacion = {Rg2_m[-1]:.6f}")
+    print(f"<Rg²> teorico    = {Rg2_teor:.6f}")
+
+    print(f"<Ree²> simulacion = {Ree2_m[-1]:.6f}")
+    print(f"<Ree²> teorico    = {Ree2_teor:.6f}")
+
+    # Diferencias relativas
+    error_rg = 100 * (Rg2_m[-1] - Rg2_teor) / Rg2_teor
+
+    error_ree = 100 * (Ree2_m[-1] - Ree2_teor) / Ree2_teor
+
+    print(f"Desviacion Rg²  = {error_rg:+.3f} %")
+    print(f"Desviacion Ree² = {error_ree:+.3f} %")
+
+    # ========================================================
+    # 8. SELECCIONAR EL INTERVALO REPRESENTADO
+    # ========================================================
+
+    mascara = t >= t_inicio_grafica
+
+    t_graf = t[mascara]
+
+    # ========================================================
+    # 9. CREAR FIGURA
+    # ========================================================
+
+    fig, axs = plt.subplots(
+        1, 2,
+        figsize=(15, 5.5)
+    )
+
+    series = [
+        (
+            Rg2_m[mascara],
+            Rg2_bloques[mascara],
+            Rg2_teor,
+            "Radio de giro al cuadrado",
+            r"$\langle R_g^2\rangle_t$",
+            "tab:blue",
+            (
+                r"Cadena ideal: "
+                rf"$\frac{{N^2-1}}{{6N}}b^2"
+                rf" = {Rg2_teor:.3f}$"
+            )
+        ),
+        (
+            Ree2_m[mascara],
+            Ree2_bloques[mascara],
+            Ree2_teor,
+            "Distancia entre extremos al cuadrado",
+            r"$\langle R_{ee}^2\rangle_t$",
+            "tab:green",
+            (
+                r"Cadena ideal: "
+                rf"$(N-1)b^2 = {Ree2_teor:.3f}$"
+            )
+        )
+    ]
+
+    for ax, (
+        media, bloques, teor, titulo,
+        ylabel, color, etiqueta
+    ) in zip(axs, series):
+
+        # Promedio acumulado
+        ax.plot(
+            t_graf,
+            media,
+            color=color,
+            linewidth=1.5,
+            label="Promedio acumulado"
+        )
+
+        # Medias por bloques, si se desea
+        if mostrar_bloques:
+            ax.plot(
+                t_graf,
+                bloques,
+                color=color,
+                alpha=0.30,
+                linewidth=1.0,
+                label="Promedio por bloques"
+            )
+
+        # Valor teorico
+        ax.axhline(
+            teor,
+            color="black",
+            linestyle="--",
+            linewidth=1.2,
+            label=etiqueta
+        )
+
+        # Etiquetas
+        ax.set_title(titulo)
+
+        ax.set_xlabel("Tiempo de medición")
+        ax.set_ylabel(ylabel)
+
+        ax.grid(alpha=0.3)
+        ax.legend(loc="best", fontsize=9)
+
+        ax.set_xlim(t_graf[0], t_graf[-1])
+
+        # ====================================================
+        # ESCALA VERTICAL CON MARGEN
+        # ====================================================
+
+        if mostrar_bloques:
+            minimo = min(np.min(media), np.min(bloques), teor)
+            maximo = max(np.max(media), np.max(bloques), teor)
+        else:
+            minimo = min(np.min(media), teor)
+            maximo = max(np.max(media), teor)
+
+        margen = max(
+            margen_relativo * (maximo - minimo),
+            0.05 * teor
+        )
+
+        ax.set_ylim(
+            max(0, minimo - margen),
+            maximo + margen
+        )
+
+    # ========================================================
+    # 10. TITULO Y GUARDADO
+    # ========================================================
+
+    fig.suptitle(
+        rf"Evolución del polímero ($N={N}$, $k_e={ke}$)",
+        fontsize=15
+    )
+
+    fig.tight_layout()
+
+    fig.savefig(
+        salida,
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.show()
+    plt.close(fig)
+
+    print(f"Grafica guardada en: {salida}")
+
+print("\nTodas las graficas disponibles se han generado.")
+
+# %%
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 3 - COMPROBACION DE CONVERGENCIA
+# ke = 1000, N = 32, 48, 64
+# RADIO DE GIRO Y DISTANCIA ENTRE EXTREMOS
+# ============================================================
+
+import numpy as np
+from pathlib import Path
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+carpeta = base / "Py/plots/OBJETIVO_3/Datos/k1000/RG"
+
+valores_N = [64]
+
+ke = 1000
+kBT = 1.0
+l0 = 1.0
+
+# Longitud cuadratica media del enlace
+sigma2 = kBT / ke
+
+b2 = (
+    l0**4 + 6*l0**2*sigma2 + 3*sigma2**2
+) / (l0**2 + sigma2)
+
+# ============================================================
+# ANALIZAR CADA CADENA
+# ============================================================
+
+for N in valores_N:
+
+    archivo = carpeta / f"Rg_Ree_N{N}_ke{ke}.txt"
+
+    if not archivo.is_file():
+        print(f"No se encuentra el TXT de N={N}")
+        continue
+
+    datos = np.loadtxt(archivo, ndmin=2)
+
+    if datos.shape[1] != 5:
+        raise ValueError(
+            f"N={N}: se esperaban cinco columnas."
+        )
+
+    t = datos[:, 0]
+
+    # Promedios acumulados
+    Rg2_m = datos[:, 1]
+    Ree2_m = datos[:, 2]
+
+    # Medias por bloques guardadas por Fortran
+    Rg2_bloques = datos[:, 3]
+    Ree2_bloques = datos[:, 4]
+
+    # Valores teoricos
+    Rg2_teor = (N**2 - 1) * b2 / (6*N)
+    Ree2_teor = (N - 1) * b2
+
+    # Dividir la medicion en cuatro partes
+    indices = np.array_split(np.arange(len(t)), 4)
+
+    medias_rg = []
+    medias_ree = []
+
+    print(f"\n{'=' * 58}")
+    print(f"N = {N}, ke = {ke}")
+    print(f"Tiempo de medicion = {t[-1]:.0f}")
+    print(f"{'=' * 58}")
+
+    for i, idx in enumerate(indices, 1):
+
+        media_rg = np.mean(Rg2_bloques[idx])
+        media_ree = np.mean(Ree2_bloques[idx])
+
+        medias_rg.append(media_rg)
+        medias_ree.append(media_ree)
+
+        print(
+            f"Bloque {i}: "
+            f"<Rg²> = {media_rg:.5f} | "
+            f"<Ree²> = {media_ree:.5f}"
+        )
+
+    # ========================================================
+    # COMPARACION ENTRE PRIMER Y ULTIMO BLOQUE
+    # ========================================================
+
+    diferencia_rg = (
+        100 * (medias_rg[-1] - medias_rg[0])
+        / medias_rg[0]
+    )
+
+    diferencia_ree = (
+        100 * (medias_ree[-1] - medias_ree[0])
+        / medias_ree[0]
+    )
+
+    print("\nCAMBIO ENTRE BLOQUE 1 Y BLOQUE 4")
+
+    print(f"Rg²:  {diferencia_rg:+.2f} %")
+    print(f"Ree²: {diferencia_ree:+.2f} %")
+
+    # ========================================================
+    # COMPARACION CON LA TEORIA
+    # ========================================================
+
+    print("\nRESULTADOS FINALES")
+
+    print(
+        f"<Rg²> = {Rg2_m[-1]:.5f} "
+        f"(teoria: {Rg2_teor:.5f})"
+    )
+
+    print(
+        f"<Ree²> = {Ree2_m[-1]:.5f} "
+        f"(teoria: {Ree2_teor:.5f})"
+    )
+
+    error_rg = (
+        100 * (Rg2_m[-1] - Rg2_teor) / Rg2_teor
+    )
+
+    error_ree = (
+        100 * (Ree2_m[-1] - Ree2_teor) / Ree2_teor
+    )
+
+    print("\nDESVIACION RESPECTO A LA TEORIA")
+
+    print(f"Rg²:  {error_rg:+.2f} %")
+    print(f"Ree²: {error_ree:+.2f} %")
+
+print("\nComprobacion terminada.")
+
+# %%
+
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 3 - AJUSTES DEL TAMANO DEL POLIMERO
+# ke = 1000
+#
+# 1. Rg² frente a N: lineal
+# 2. Rg² frente a N: log-log
+# 3. Ree² frente a N: lineal
+# 4. Ree² frente a N: log-log
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+# ============================================================
+# 1. PARAMETROS Y CARPETAS
+# ============================================================
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+valores_N = np.array(
+    [4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 64]
+)
+
+ke = 1000
+kBT = 1.0
+l0 = 1.0
+
+carpeta_datos = base / "Py/plots/OBJETIVO_3/Datos/k1000/RG"
+carpeta_salida = base / "Py/plots/OBJETIVO_3/RG/k1000"
+
+carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+# Nombres nuevos para proteger otros resultados
+nombres_graficas = {
+    "rg_lineal": "Rg2_vs_N_ke1000_lineal_Claudia.png",
+    "rg_loglog": "Rg2_vs_N_ke1000_loglog_Claudia.png",
+    "ree_lineal": "Ree2_vs_N_ke1000_lineal_Claudia.png",
+    "ree_loglog": "Ree2_vs_N_ke1000_loglog_Claudia.png"
+}
+
+salida_csv = (
+    carpeta_salida / "Resumen_Rg_Ree_ke1000_Claudia.csv"
+)
+
+# Evitar sobrescribir resultados
+salidas = [
+    carpeta_salida / nombre
+    for nombre in nombres_graficas.values()
+] + [salida_csv]
+
+for salida in salidas:
+    if salida.exists():
+        raise FileExistsError(
+            f"El archivo ya existe: {salida}. "
+            "Cambia su nombre antes de ejecutar."
+        )
+
+# ============================================================
+# 2. LEER LAS 13 SIMULACIONES
+# ============================================================
+
+Rg2_medios = []
+Ree2_medios = []
+tiempos = []
+
+for N in valores_N:
+
+    archivo = carpeta_datos / f"Rg_Ree_N{N}_ke{ke}.txt"
+
+    if not archivo.is_file():
+        raise FileNotFoundError(
+            f"No se encuentra: {archivo}"
+        )
+
+    datos = np.loadtxt(archivo, ndmin=2)
+
+    if datos.shape[1] != 5:
+        raise ValueError(
+            f"N={N}: el TXT debe contener cinco columnas."
+        )
+
+    # Duracion esperada de la fase de medicion
+    if N == 64:
+        t_esperado = 200000
+    elif N >= 40:
+        t_esperado = 150000
+    else:
+        t_esperado = 100000
+
+    if not np.isclose(
+        datos[-1, 0], t_esperado,
+        rtol=0, atol=1
+    ):
+        raise ValueError(
+            f"N={N}: tiempo final inesperado."
+        )
+
+    rg2 = datos[-1, 1]
+    ree2 = datos[-1, 2]
+
+    if not np.isfinite(rg2) or rg2 <= 0:
+        raise ValueError(f"Rg² invalido para N={N}")
+
+    if not np.isfinite(ree2) or ree2 <= 0:
+        raise ValueError(f"Ree² invalido para N={N}")
+
+    Rg2_medios.append(rg2)
+    Ree2_medios.append(ree2)
+    tiempos.append(datos[-1, 0])
+
+    print(
+        f"N={N:2d} | "
+        f"<Rg²>={rg2:.6f} | "
+        f"<Ree²>={ree2:.6f}"
+    )
+
+Rg2_medios = np.array(Rg2_medios)
+Ree2_medios = np.array(Ree2_medios)
+tiempos = np.array(tiempos)
+
+# ============================================================
+# 3. VALORES TEORICOS
+# ============================================================
+
+sigma2 = kBT / ke
+
+# Longitud cuadratica media de los enlaces
+b2 = (
+    l0**4 + 6*l0**2*sigma2 + 3*sigma2**2
+) / (l0**2 + sigma2)
+
+N_suave = np.linspace(4, 64, 500)
+
+# Radio de giro
+Rg2_teor = (
+    (N_suave**2 - 1)
+    / (6 * N_suave)
+    * b2
+)
+
+# Distancia entre extremos
+Ree2_teor = (N_suave - 1) * b2
+
+Rg2_teor_puntos = (
+    (valores_N**2 - 1)
+    / (6 * valores_N)
+    * b2
+)
+
+Ree2_teor_puntos = (valores_N - 1) * b2
+
+print("\n========== TEORIA ==========")
+print(f"b² = {b2:.6f}")
+print(f"Pendiente Rg² teorica: {b2/6:.6f}")
+print(f"Pendiente Ree² teorica: {b2:.6f}")
+
+# ============================================================
+# 4. FUNCIONES DE AJUSTE
+# ============================================================
+
+def ajuste_lineal(N, y):
+
+    coef, cov = np.polyfit(
+        N, y, 1, cov=True
+    )
+
+    m, c = coef
+
+    error_m = np.sqrt(cov[0, 0])
+    error_c = np.sqrt(cov[1, 1])
+
+    pred = m*N + c
+
+    R2 = 1 - (
+        np.sum((y-pred)**2)
+        / np.sum((y-np.mean(y))**2)
+    )
+
+    return m, c, error_m, error_c, R2
+
+
+def ajuste_loglog(N, y):
+
+    log_N = np.log(N)
+    log_y = np.log(y)
+
+    coef, cov = np.polyfit(
+        log_N, log_y, 1, cov=True
+    )
+
+    alpha, log_A = coef
+
+    error_alpha = np.sqrt(cov[0, 0])
+
+    A = np.exp(log_A)
+
+    nu = alpha/2
+    error_nu = error_alpha/2
+
+    pred = alpha*log_N + log_A
+
+    R2 = 1 - (
+        np.sum((log_y-pred)**2)
+        / np.sum((log_y-np.mean(log_y))**2)
+    )
+
+    return A, alpha, nu, error_nu, R2
+
+
+# ============================================================
+# 5. AJUSTES DEL RADIO DE GIRO
+# ============================================================
+
+m_rg, c_rg, em_rg, ec_rg, R2_rg = ajuste_lineal(
+    valores_N, Rg2_medios
+)
+
+A_rg, alpha_rg, nu_rg, enu_rg, R2log_rg = ajuste_loglog(
+    valores_N, Rg2_medios
+)
+
+# ============================================================
+# 6. AJUSTES DE LA DISTANCIA ENTRE EXTREMOS
+# ============================================================
+
+m_ree, c_ree, em_ree, ec_ree, R2_ree = ajuste_lineal(
+    valores_N, Ree2_medios
+)
+
+A_ree, alpha_ree, nu_ree, enu_ree, R2log_ree = ajuste_loglog(
+    valores_N, Ree2_medios
+)
+
+# ============================================================
+# 7. FUNCION PARA CREAR LAS GRAFICAS
+# ============================================================
+
+def crear_grafica(
+    y_datos, y_teor, observable,
+    titulo, nombre_archivo,
+    tipo, ajuste
+):
+
+    fig, ax = plt.subplots(figsize=(9, 6))
+
+    # Puntos simulados, sin barras de error
+    ax.plot(
+        valores_N,
+        y_datos,
+        "o",
+        color="tab:blue",
+        markersize=6,
+        label="Simulación"
+    )
+
+    if tipo == "lineal":
+
+        m, c, error_m, error_c, R2 = ajuste
+
+        y_fit = m*N_suave + c
+
+        etiqueta = (
+            rf"Ajuste: ${observable}="
+            rf"({m:.4f}\pm{error_m:.4f})N"
+            rf"{c:+.4f}$"
+            "\n"
+            rf"$R^2={R2:.5f}$"
+        )
+
+    else:
+
+        A, alpha, nu, error_nu, R2 = ajuste
+
+        y_fit = A*N_suave**alpha
+
+        etiqueta = (
+            rf"Ajuste: ${observable}="
+            rf"{A:.4f}N^{{{alpha:.4f}}}$"
+            "\n"
+            rf"$\nu={nu:.4f}\pm{error_nu:.4f}$"
+            "\n"
+            rf"$R^2={R2:.5f}$"
+        )
+
+    # Ajuste experimental
+    ax.plot(
+        N_suave,
+        y_fit,
+        color="tab:red",
+        linewidth=1.8,
+        label=etiqueta
+    )
+
+    # Prediccion teorica
+    ax.plot(
+        N_suave,
+        y_teor,
+        color="black",
+        linestyle="--",
+        linewidth=1.5,
+        label="Cadena ideal"
+    )
+
+    # Escala logaritmica si corresponde
+    if tipo == "loglog":
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.grid(True, which="both", alpha=0.3)
+    else:
+        ax.set_xlim(2, 67)
+        ax.grid(alpha=0.3)
+
+    ax.set_title(titulo, fontsize=14)
+    ax.set_xlabel(r"Número de monómeros, $N$")
+    ax.set_ylabel(f"${observable}$")
+
+    ax.legend(loc="upper left", fontsize=9)
+
+    fig.tight_layout()
+
+    salida = carpeta_salida / nombre_archivo
+
+    fig.savefig(
+        salida,
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.show()
+    plt.close(fig)
+
+    print(f"Guardada: {salida.name}")
+
+
+# ============================================================
+# 8. GENERAR LOS CUATRO AJUSTES
+# ============================================================
+
+# RADIO DE GIRO - LINEAL
+crear_grafica(
+    Rg2_medios,
+    Rg2_teor,
+    r"\langle R_g^2\rangle",
+    rf"Radio de giro al cuadrado frente a $N$ ($k_e={ke}$)",
+    nombres_graficas["rg_lineal"],
+    "lineal",
+    (m_rg, c_rg, em_rg, ec_rg, R2_rg)
+)
+
+# RADIO DE GIRO - LOG-LOG
+crear_grafica(
+    Rg2_medios,
+    Rg2_teor,
+    r"\langle R_g^2\rangle",
+    rf"Ajuste log-log del radio de giro ($k_e={ke}$)",
+    nombres_graficas["rg_loglog"],
+    "loglog",
+    (A_rg, alpha_rg, nu_rg, enu_rg, R2log_rg)
+)
+
+# DISTANCIA ENTRE EXTREMOS - LINEAL
+crear_grafica(
+    Ree2_medios,
+    Ree2_teor,
+    r"\langle R_{ee}^2\rangle",
+    rf"Distancia entre extremos al cuadrado ($k_e={ke}$)",
+    nombres_graficas["ree_lineal"],
+    "lineal",
+    (m_ree, c_ree, em_ree, ec_ree, R2_ree)
+)
+
+# DISTANCIA ENTRE EXTREMOS - LOG-LOG
+crear_grafica(
+    Ree2_medios,
+    Ree2_teor,
+    r"\langle R_{ee}^2\rangle",
+    rf"Ajuste log-log de la distancia entre extremos ($k_e={ke}$)",
+    nombres_graficas["ree_loglog"],
+    "loglog",
+    (A_ree, alpha_ree, nu_ree, enu_ree, R2log_ree)
+)
+
+# ============================================================
+# 9. RESUMEN NUMERICO DE LOS AJUSTES
+# ============================================================
+
+print("\n========== RADIO DE GIRO ==========")
+
+print(
+    f"Lineal: pendiente = {m_rg:.6f} +/- {em_rg:.6f}"
+)
+print(f"Ordenada = {c_rg:.6f}")
+print(f"R² lineal = {R2_rg:.6f}")
+
+print(
+    f"Log-log: nu = {nu_rg:.6f} +/- {enu_rg:.6f}"
+)
+print(f"R² log-log = {R2log_rg:.6f}")
+
+print("\n========== DISTANCIA ENTRE EXTREMOS ==========")
+
+print(
+    f"Lineal: pendiente = {m_ree:.6f} +/- {em_ree:.6f}"
+)
+print(f"Ordenada = {c_ree:.6f}")
+print(f"R² lineal = {R2_ree:.6f}")
+
+print(
+    f"Log-log: nu = {nu_ree:.6f} +/- {enu_ree:.6f}"
+)
+print(f"R² log-log = {R2log_ree:.6f}")
+
+# ============================================================
+# 10. GUARDAR TABLA RESUMEN
+# ============================================================
+
+tabla = np.column_stack([
+    valores_N,
+    tiempos,
+    Rg2_medios,
+    Ree2_medios,
+    Rg2_teor_puntos,
+    Ree2_teor_puntos
+])
+
+np.savetxt(
+    salida_csv,
+    tabla,
+    delimiter=",",
+    header=(
+        "N,tiempo_medicion,Rg2_media,Ree2_media,"
+        "Rg2_teorica,Ree2_teorica"
+    ),
+    comments="",
+    fmt=["%d", "%.0f", "%.8f", "%.8f", "%.8f", "%.8f"]
+)
+
+print("\nCuatro graficas generadas correctamente.")
+print("Resumen CSV guardado en:", salida_csv)
+
+# %%
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 3 - COMPARACION FINAL
+# RADIO DE GIRO Y DISTANCIA ENTRE EXTREMOS
+# ke = 100 frente a ke = 1000
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+# ============================================================
+# 1. PARAMETROS
+# ============================================================
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+valores_N = np.array(
+    [4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 64]
+)
+
+kBT = 1.0
+l0 = 1.0
+
+# Carpeta general donde guardaremos las dos graficas
+carpeta_salida = base / "Py/plots/OBJETIVO_3/RG"
+
+carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+# ============================================================
+# 2. FUNCION PARA LEER LOS RESULTADOS
+# ============================================================
+
+def cargar_resultados(ke):
+
+    carpeta_resumen = (
+        base / f"Py/plots/OBJETIVO_3/RG/k{ke}"
+    )
+
+    resumen = (
+        carpeta_resumen /
+        f"Resumen_Rg_Ree_ke{ke}_Claudia.csv"
+    )
+
+    if resumen.exists():
+
+        datos = np.genfromtxt(
+            resumen,
+            delimiter=",",
+            names=True,
+            encoding="utf-8-sig",
+            ndmin=1
+        )
+
+        columnas = datos.dtype.names
+
+        necesarias = ["N", "Rg2_media", "Ree2_media"]
+
+        if not all(c in columnas for c in necesarias):
+            raise ValueError(
+                f"El CSV {resumen.name} no tiene las columnas "
+                f"{necesarias}. Tiene: {columnas}"
+            )
+
+        N = np.asarray(datos["N"], dtype=int)
+        rg2 = np.asarray(datos["Rg2_media"], dtype=float)
+        ree2 = np.asarray(datos["Ree2_media"], dtype=float)
+
+    else:
+
+        # Si no existe el CSV, leer los TXT
+        carpeta_datos = (
+            base / f"Py/plots/OBJETIVO_3/Datos/k{ke}/RG"
+        )
+
+        N = valores_N.copy()
+
+        rg2 = []
+        ree2 = []
+
+        for n in N:
+
+            if ke == 100 and n == 64:
+                nombre = "Rg_Ree_N64_ke100_T200000.txt"
+            else:
+                nombre = f"Rg_Ree_N{n}_ke{ke}.txt"
+
+            archivo = carpeta_datos / nombre
+
+            if not archivo.exists():
+                raise FileNotFoundError(
+                    f"No encuentro el resumen de k={ke} "
+                    f"ni el TXT: {archivo}. "
+                    "Necesitamos conservar al menos el CSV "
+                    "con Rg2_media y Ree2_media."
+                )
+
+            datos = np.loadtxt(archivo, ndmin=2)
+
+            rg2.append(datos[-1, 1])
+            ree2.append(datos[-1, 2])
+
+        rg2 = np.array(rg2)
+        ree2 = np.array(ree2)
+
+    # Ordenar por N
+    orden = np.argsort(N)
+
+    N = N[orden]
+    rg2 = rg2[orden]
+    ree2 = ree2[orden]
+
+    if not np.array_equal(N, valores_N):
+        raise ValueError(
+            f"Los tamaños de k={ke} no coinciden "
+            "con los 13 esperados."
+        )
+
+    return rg2, ree2
+
+
+# ============================================================
+# 3. CARGAR LAS DOS RIGIDECES
+# ============================================================
+
+Rg2_100, Ree2_100 = cargar_resultados(100)
+
+Rg2_1000, Ree2_1000 = cargar_resultados(1000)
+
+# ============================================================
+# 4. PREDICCIONES TEORICAS
+# ============================================================
+
+def calcular_b2(ke):
+
+    sigma2 = kBT / ke
+
+    return (
+        l0**4 + 6*l0**2*sigma2 + 3*sigma2**2
+    ) / (l0**2 + sigma2)
+
+
+b2_100 = calcular_b2(100)
+b2_1000 = calcular_b2(1000)
+
+N_suave = np.linspace(4, 64, 500)
+
+# Radio de giro teorico
+Rg2_teor_100 = (
+    (N_suave**2 - 1)/(6*N_suave)*b2_100
+)
+
+Rg2_teor_1000 = (
+    (N_suave**2 - 1)/(6*N_suave)*b2_1000
+)
+
+# Distancia entre extremos teorica
+Ree2_teor_100 = (N_suave - 1)*b2_100
+Ree2_teor_1000 = (N_suave - 1)*b2_1000
+
+# ============================================================
+# 5. FUNCION PARA CREAR LA GRAFICA COMPARATIVA
+# ============================================================
+
+def grafica_comparativa(
+    datos_100,
+    datos_1000,
+    teor_100,
+    teor_1000,
+    ylabel,
+    titulo,
+    nombre_salida
+):
+
+    # Ajustes lineales independientes
+    m100, c100 = np.polyfit(
+        valores_N, datos_100, 1
+    )
+
+    m1000, c1000 = np.polyfit(
+        valores_N, datos_1000, 1
+    )
+
+    fig, ax = plt.subplots(figsize=(10, 6.5))
+
+    # --------------------------------------------------------
+    # PUNTOS DE SIMULACION
+    # --------------------------------------------------------
+
+    ax.plot(
+        valores_N,
+        datos_100,
+        "o",
+        color="tab:blue",
+        markersize=6,
+        label=r"Simulación $k_e=100$"
+    )
+
+    ax.plot(
+        valores_N,
+        datos_1000,
+        "o",
+        color="tab:orange",
+        markersize=6,
+        label=r"Simulación $k_e=1000$"
+    )
+
+    # --------------------------------------------------------
+    # AJUSTES LINEALES
+    # --------------------------------------------------------
+
+    ax.plot(
+        N_suave,
+        m100*N_suave+c100,
+        color="tab:blue",
+        linewidth=1.8,
+        label=(
+            rf"Ajuste $k_e=100$: "
+            rf"$m={m100:.4f}$"
+        )
+    )
+
+    ax.plot(
+        N_suave,
+        m1000*N_suave+c1000,
+        color="tab:orange",
+        linewidth=1.8,
+        label=(
+            rf"Ajuste $k_e=1000$: "
+            rf"$m={m1000:.4f}$"
+        )
+    )
+
+    # --------------------------------------------------------
+    # PREDICCIONES TEORICAS
+    # --------------------------------------------------------
+
+    ax.plot(
+        N_suave,
+        teor_100,
+        color="tab:blue",
+        linestyle="--",
+        linewidth=1.4,
+        alpha=0.8,
+        label=r"Teoría $k_e=100$"
+    )
+
+    ax.plot(
+        N_suave,
+        teor_1000,
+        color="tab:orange",
+        linestyle="--",
+        linewidth=1.4,
+        alpha=0.8,
+        label=r"Teoría $k_e=1000$"
+    )
+
+    # --------------------------------------------------------
+    # FORMATO
+    # --------------------------------------------------------
+
+    ax.set_title(titulo, fontsize=14)
+
+    ax.set_xlabel("Número de monómeros, N")
+    ax.set_ylabel(ylabel)
+
+    ax.set_xlim(2, 67)
+
+    ax.grid(alpha=0.3)
+
+    ax.legend(
+        loc="upper left",
+        fontsize=9,
+        ncol=2
+    )
+
+    fig.tight_layout()
+
+    salida = carpeta_salida / nombre_salida
+
+    if salida.exists():
+        print(
+            f"Ya existe {salida.name}. "
+            "No se sobrescribe."
+        )
+    else:
+        fig.savefig(
+            salida,
+            dpi=300,
+            bbox_inches="tight"
+        )
+        print(f"Guardada: {salida}")
+
+    plt.show()
+    plt.close(fig)
+
+    print(f"Pendiente ke=100:  {m100:.6f}")
+    print(f"Pendiente ke=1000: {m1000:.6f}")
+
+
+# ============================================================
+# 6. COMPARACION DEL RADIO DE GIRO
+# ============================================================
+
+grafica_comparativa(
+    Rg2_100,
+    Rg2_1000,
+    Rg2_teor_100,
+    Rg2_teor_1000,
+    r"$\langle R_g^2\rangle$",
+    "Comparación del radio de giro para ambas rigideces",
+    "Comparacion_Rg2_ke100_ke1000.png"
+)
+
+# ============================================================
+# 7. COMPARACION DE DISTANCIA ENTRE EXTREMOS
+# ============================================================
+
+grafica_comparativa(
+    Ree2_100,
+    Ree2_1000,
+    Ree2_teor_100,
+    Ree2_teor_1000,
+    r"$\langle R_{ee}^2\rangle$",
+    "Comparación de la distancia entre extremos",
+    "Comparacion_Ree2_ke100_ke1000.png"
+)
+
+print("\nComparacion final terminada.")
+
+# %%
