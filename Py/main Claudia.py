@@ -6778,4 +6778,712 @@ comparar_magnitud(
 print("\nLas dos comparaciones han terminado.")
 
 
+
+
+
+   
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 2 - DISTRIBUCIONES DE TIEMPOS DE ESTANCIA
+# VERSION FINAL CON CORTES REVISADOS
+#
+# Pozos 1 y 2 combinados en un unico histograma.
+# Ajuste exponencial de la cola mediante maxima
+# verosimilitud.
+#
+# Se generan 7 graficas y un CSV resumen.
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+import unicodedata
+
+# ============================================================
+# 1. CARPETAS
+# ============================================================
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+
+obj2 = base / "Py/plots/OBJETIVO_2"
+
+
+def normalizar(nombre):
+    nombre = unicodedata.normalize("NFKD", nombre)
+    return "".join(
+        c.lower() for c in nombre if c.isalnum()
+    )
+
+
+carpetas = [
+    p for p in obj2.iterdir()
+    if p.is_dir()
+    and normalizar(p.name) == "distribucionestancia"
+]
+
+if len(carpetas) != 1:
+    raise FileNotFoundError(
+        "No encuentro una unica carpeta Distribucion_estancia"
+    )
+
+carpeta_raiz = carpetas[0]
+
+print("Carpeta de trabajo:", carpeta_raiz)
+
+# ============================================================
+# 2. PARAMETROS Y CORTES DEFINITIVOS
+# ============================================================
+
+CASOS = [
+    (0.5, 0.04, 80),
+    (0.5, 0.10, 30),
+    (0.5, 1.00, 20),
+    (0.5, 3.50, 20),
+
+    (1.0, 0.04, 120),
+    (1.0, 0.10, 30),
+    (1.0, 1.00, 20)
+]
+
+# Numero minimo de estancias en la cola
+MIN_EVENTOS = 30
+
+# ============================================================
+# 3. FUNCION PARA CARGAR LAS ESTANCIAS
+# ============================================================
+
+def cargar_pozo(A, eta, pozo):
+
+    nombre = (
+        f"estancia_pozo{pozo}_"
+        f"A{A:.1f}_eta{eta:.2f}.txt"
+    )
+
+    archivos = list(carpeta_raiz.rglob(nombre))
+
+    if len(archivos) != 1:
+        raise FileNotFoundError(
+            f"Se esperaba un archivo y hay "
+            f"{len(archivos)}: {nombre}"
+        )
+
+    archivo = archivos[0]
+
+    tiempos = np.loadtxt(archivo, ndmin=1)
+
+    if tiempos.ndim != 1:
+        raise ValueError(
+            f"{nombre}: se esperaba una columna."
+        )
+
+    if not np.all(np.isfinite(tiempos)):
+        raise ValueError(
+            f"{nombre}: contiene datos no finitos."
+        )
+
+    if np.any(tiempos < 0):
+        raise ValueError(
+            f"{nombre}: contiene tiempos negativos."
+        )
+
+    return tiempos.astype(float), archivo
+
+
+# ============================================================
+# 4. ESTIMACION DE LA TASA DE ESCAPE
+# ============================================================
+
+def ajustar_cola(tiempos, tau_min):
+
+    cola = tiempos[tiempos >= tau_min]
+
+    N_cola = len(cola)
+
+    if N_cola < MIN_EVENTOS:
+        raise ValueError(
+            f"Solo hay {N_cola} estancias en la cola."
+        )
+
+    # Excesos respecto al tiempo minimo
+    excesos = cola - tau_min
+
+    media_excesos = np.mean(excesos)
+
+    if media_excesos <= 0:
+        raise ValueError(
+            "No se puede estimar la tasa."
+        )
+
+    # Maxima verosimilitud para cola exponencial
+    k = 1.0 / media_excesos
+
+    # Tiempo caracteristico
+    tau_c = 1.0 / k
+
+    return N_cola, k, tau_c
+
+
+# ============================================================
+# 5. NOTACION CIENTIFICA PARA LA LEYENDA
+# ============================================================
+
+def notacion_cientifica(valor):
+
+    mantisa, exponente = f"{valor:.3e}".split("e")
+
+    return (
+        rf"{float(mantisa):.3f}"
+        rf"\times10^{{{int(exponente)}}}"
+    )
+
+
+# ============================================================
+# 6. COMPROBAR Y CARGAR LOS SIETE CASOS
+# ============================================================
+
+series = []
+
+for A, eta, tau_min in CASOS:
+
+    tau1, archivo1 = cargar_pozo(A, eta, 1)
+    tau2, archivo2 = cargar_pozo(A, eta, 2)
+
+    tiempos = np.concatenate([tau1, tau2])
+
+    if len(tiempos) == 0 or np.max(tiempos) <= 0:
+        raise ValueError(
+            f"No hay estancias validas para "
+            f"A={A}, eta={eta}"
+        )
+
+    N_cola, k, tau_c = ajustar_cola(
+        tiempos, tau_min
+    )
+
+    series.append({
+        "A": A,
+        "eta": eta,
+        "tau_min": tau_min,
+        "tau1": tau1,
+        "tau2": tau2,
+        "tiempos": tiempos,
+        "carpeta": archivo1.parent,
+        "N_cola": N_cola,
+        "k": k,
+        "tau_c": tau_c
+    })
+
+print("\nLos siete casos se han cargado correctamente.")
+
+# ============================================================
+# 7. GENERAR LOS SIETE HISTOGRAMAS
+# ============================================================
+
+resumen = []
+
+for r in series:
+
+    A = r["A"]
+    eta = r["eta"]
+    tau_min = r["tau_min"]
+
+    tiempos = r["tiempos"]
+
+    N1 = len(r["tau1"])
+    N2 = len(r["tau2"])
+    N_total = len(tiempos)
+
+    N_cola = r["N_cola"]
+    k = r["k"]
+    tau_c = r["tau_c"]
+
+    print("\n" + "="*60)
+    print(f"A = {A:.1f} | eta = {eta:.2f}")
+    print("="*60)
+
+    print(f"Pozo 1: {N1} estancias")
+    print(f"Pozo 2: {N2} estancias")
+    print(f"Total:  {N_total} estancias")
+
+    print(f"tau_min = {tau_min}")
+    print(f"N_cola  = {N_cola}")
+
+    print(f"k = {k:.8f}")
+    print(f"1/k = {tau_c:.4f}")
+
+    # --------------------------------------------------------
+    # HISTOGRAMA NORMALIZADO
+    # --------------------------------------------------------
+
+    xmax = np.max(tiempos) * 1.0001
+
+    # Mantenemos los intervalos del codigo anterior,
+    # independientemente del corte elegido.
+    frontera = min(60.0, xmax/2)
+
+    bordes = np.unique(
+        np.concatenate([
+            np.linspace(0, frontera, 25),
+            np.linspace(frontera, xmax, 65)
+        ])
+    )
+
+    cuentas, bordes = np.histogram(
+        tiempos,
+        bins=bordes
+    )
+
+    anchos = np.diff(bordes)
+
+    # Densidad normalizada con TODAS las estancias
+    densidad = cuentas / (N_total * anchos)
+
+    # Solo mostramos barras positivas por la escala log
+    mascara = densidad > 0
+
+    # --------------------------------------------------------
+    # AJUSTE EXPONENCIAL DE LA COLA
+    # --------------------------------------------------------
+
+    fraccion_cola = N_cola / N_total
+
+    tau_fit = np.linspace(
+        tau_min, xmax, 500
+    )
+
+    p_fit = (
+        fraccion_cola
+        * k
+        * np.exp(-k*(tau_fit-tau_min))
+    )
+
+    # Forma equivalente: p(tau) = C * exp(-k*tau)
+    C = (
+        fraccion_cola
+        * k
+        * np.exp(k*tau_min)
+    )
+
+    C_latex = notacion_cientifica(C)
+
+    # --------------------------------------------------------
+    # GRAFICA
+    # --------------------------------------------------------
+
+    fig, ax = plt.subplots(figsize=(10, 6.5))
+
+    # Histograma conjunto
+    ax.bar(
+        bordes[:-1][mascara],
+        densidad[mascara],
+        width=anchos[mascara],
+        align="edge",
+        color="tab:blue",
+        alpha=0.65,
+        edgecolor="tab:blue",
+        linewidth=0.35,
+        label=rf"Distribución conjunta ($N={N_total}$)"
+    )
+
+    # Region excluida del ajuste
+    ax.axvspan(
+        0, tau_min,
+        color="gray",
+        alpha=0.10
+    )
+
+    # Tiempo minimo
+    ax.axvline(
+        tau_min,
+        color="gray",
+        linestyle=":",
+        linewidth=1.7,
+        label=rf"$\tau_{{\min}}={tau_min}$"
+    )
+
+    # Ajuste exponencial
+    ax.plot(
+        tau_fit,
+        p_fit,
+        "--",
+        color="tab:orange",
+        linewidth=2.3,
+        label=(
+            rf"$p(\tau)={C_latex}"
+            rf"e^{{-{k:.5f}\tau}}$"
+            "\n"
+            rf"$1/k={tau_c:.2f}$"
+        )
+    )
+
+    # --------------------------------------------------------
+    # FORMATO
+    # --------------------------------------------------------
+
+    ax.set_yscale("log")
+
+    ax.set_title(
+        "Distribución conjunta de tiempos de estancia\n"
+        rf"$A={A:.1f}$, $\eta={eta:.2f}$",
+        fontsize=14
+    )
+
+    ax.set_xlabel(
+        r"Tiempo de estancia $\tau$",
+        fontsize=12
+    )
+
+    ax.set_ylabel(
+        r"Densidad de probabilidad $p(\tau)$",
+        fontsize=12
+    )
+
+    ax.set_xlim(0, xmax * 1.01)
+
+    ax.grid(
+        True,
+        which="both",
+        alpha=0.25
+    )
+
+    ax.legend(
+        loc="upper right",
+        fontsize=10
+    )
+
+    fig.tight_layout()
+
+    # --------------------------------------------------------
+    # GUARDAR GRAFICA
+    # --------------------------------------------------------
+
+    nombre = (
+        f"Estancia_conjunta_A{A:.1f}_"
+        f"eta{eta:.2f}_Claudia.png"
+    )
+
+    salida = r["carpeta"] / nombre
+
+    # Sobrescribe solo el PNG correspondiente
+    fig.savefig(
+        salida,
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.show()
+    plt.close(fig)
+
+    print("Grafica actualizada:", salida.name)
+
+    # --------------------------------------------------------
+    # GUARDAR RESULTADO NUMERICO
+    # --------------------------------------------------------
+
+    resumen.append([
+        A,
+        eta,
+        N1,
+        N2,
+        N_total,
+        tau_min,
+        N_cola,
+        k,
+        tau_c
+    ])
+
+
+# ============================================================
+# 8. ACTUALIZAR TABLA RESUMEN
+# ============================================================
+
+archivo_resumen = (
+    carpeta_raiz /
+    "Resumen_estancias_conjuntas_Claudia.csv"
+)
+
+np.savetxt(
+    archivo_resumen,
+    np.array(resumen),
+    delimiter=",",
+    header=(
+        "A,eta,N_pozo1,N_pozo2,N_total,"
+        "tau_min,N_cola,k,Tiempo_caracteristico"
+    ),
+    comments="",
+    fmt=[
+        "%.1f", "%.2f",
+        "%d", "%d", "%d",
+        "%.0f", "%d",
+        "%.9f", "%.6f"
+    ]
+)
+
+print("\n" + "="*60)
+print("PROCESO FINALIZADO")
+print("="*60)
+
+print("Graficas actualizadas:", len(resumen))
+print("Resumen actualizado:", archivo_resumen.name)
+print("Carpeta:", carpeta_raiz)
+
+
+
+
+
+
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 2 - ESTABILIDAD DEL AJUSTE EXPONENCIAL
+# Analisis conjunto de pozo 1 y pozo 2
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+import unicodedata
+
+base = Path.home() / "Documents/A_5-Molecular_dynamics"
+obj2 = base / "Py/plots/OBJETIVO_2"
+
+def normalizar(texto):
+    texto = unicodedata.normalize("NFKD", texto)
+    return "".join(c.lower() for c in texto if c.isalnum())
+
+carpetas = [
+    p for p in obj2.iterdir()
+    if p.is_dir() and normalizar(p.name) == "distribucionestancia"
+]
+
+if len(carpetas) != 1:
+    raise FileNotFoundError(
+        "No encuentro una unica carpeta Distribucion_estancia"
+    )
+
+carpeta = carpetas[0]
+
+# Solamente los siete casos disponibles
+casos = {
+    0.5: [0.04, 0.10, 1.00, 3.50],
+    1.0: [0.04, 0.10, 1.00]
+}
+
+def cargar_tiempos(A, eta):
+    muestras = []
+
+    for pozo in [1, 2]:
+        nombre = (
+            f"estancia_pozo{pozo}_"
+            f"A{A:.1f}_eta{eta:.2f}.txt"
+        )
+
+        encontrados = list(carpeta.rglob(nombre))
+
+        if len(encontrados) != 1:
+            raise FileNotFoundError(nombre)
+
+        datos = np.atleast_1d(
+            np.loadtxt(encontrados[0])
+        )
+
+        if (
+            datos.ndim != 1
+            or not np.all(np.isfinite(datos))
+            or np.any(datos < 0)
+        ):
+            raise ValueError(f"Datos invalidos: {nombre}")
+
+        muestras.append(datos)
+
+    return np.concatenate(muestras)
+
+
+def calcular_tasa(tiempos, corte):
+    cola = tiempos[tiempos >= corte]
+    n = len(cola)
+
+    if n < 100:
+        return n, np.nan
+
+    media_exceso = np.mean(cola - corte)
+
+    if media_exceso <= 0:
+        return n, np.nan
+
+    return n, 1.0 / media_exceso
+
+
+resultados = []
+
+for A, etas in casos.items():
+
+    fig, axes = plt.subplots(
+        2, 2, figsize=(13, 9)
+    )
+    axes = axes.flatten()
+
+    for i, eta in enumerate(etas):
+
+        tiempos = cargar_tiempos(A, eta)
+
+        # Ampliamos el estudio para eta=0.04
+        if eta == 0.04:
+            cortes = [
+                0, 10, 20, 30, 50, 80,
+                100, 120, 150, 200, 250, 300
+            ]
+        else:
+            cortes = [
+                0, 10, 20, 30, 40,
+                50, 60, 80, 100
+            ]
+
+        tasas = []
+        cantidades = []
+
+        print(
+            f"\nA={A:.1f}, eta={eta:.2f}, "
+            f"eventos={len(tiempos)}"
+        )
+
+        for corte in cortes:
+
+            n, k = calcular_tasa(tiempos, corte)
+
+            tasas.append(k)
+            cantidades.append(n)
+
+            resultados.append([
+                A, eta, corte, n, k
+            ])
+
+            print(
+                f"tau_min={corte:3d} | "
+                f"N_cola={n:5d} | "
+                f"k={k:.8f}"
+            )
+
+        # ----------------------------------------------------
+        # GRAFICA DE ESTABILIDAD
+        # ----------------------------------------------------
+
+        ax = axes[i]
+
+        cortes = np.array(cortes)
+        tasas = np.array(tasas)
+        cantidades = np.array(cantidades)
+
+        # Mostramos desde 10 para apreciar
+        # mejor la zona donde buscamos estabilidad.
+        mascara = (cortes >= 10) & np.isfinite(tasas)
+
+        x = cortes[mascara]
+        y = tasas[mascara]
+        n = cantidades[mascara]
+
+        ax.plot(
+            x, y,
+            "o-",
+            color="tab:blue",
+            markersize=5,
+            linewidth=1.5
+        )
+
+        for j, (xx, yy, nn) in enumerate(zip(x, y, n)):
+            if j % 2 == 0 or j == len(x)-1:
+                ax.annotate(
+                    f"N={nn}",
+                    (xx, yy),
+                    xytext=(0, 7),
+                    textcoords="offset points",
+                    ha="center",
+                    fontsize=7
+                )
+
+        ax.axvline(
+            30,
+            color="gray",
+            linestyle=":",
+            alpha=0.65,
+            label="Corte provisional: 30"
+        )
+
+        ax.set_title(
+            rf"$A={A:.1f}$, $\eta={eta:.2f}$"
+        )
+
+        ax.set_xlabel(
+            r"Tiempo mínimo $\tau_{\min}$"
+        )
+
+        ax.set_ylabel(
+            r"Tasa de escape $k$"
+        )
+
+        ax.grid(alpha=0.3)
+        ax.legend(fontsize=8)
+
+        ax.margins(y=0.18)
+
+    # Ocultar el cuarto panel cuando A=1.0
+    for j in range(len(etas), 4):
+        axes[j].axis("off")
+
+    fig.suptitle(
+        rf"Estabilidad de la tasa exponencial ($A={A:.1f}$)"
+        "\nPozos 1 y 2 combinados",
+        fontsize=15
+    )
+
+    fig.tight_layout()
+
+    salida = (
+        carpeta /
+        f"Estabilidad_conjunta_A{A:.1f}_revision_Claudia.png"
+    )
+
+    if not salida.exists():
+        fig.savefig(
+            salida,
+            dpi=300,
+            bbox_inches="tight"
+        )
+        print("\nGrafica guardada:", salida.name)
+    else:
+        print("\nYa existe:", salida.name)
+
+    plt.show()
+    plt.close(fig)
+
+
+# ============================================================
+# GUARDAR TABLA AMPLIADA
+# ============================================================
+
+salida_csv = (
+    carpeta /
+    "Estabilidad_conjunta_ampliada_Claudia.csv"
+)
+
+if not salida_csv.exists():
+    np.savetxt(
+        salida_csv,
+        np.array(resultados),
+        delimiter=",",
+        header="A,eta,tau_min,N_cola,k",
+        comments="",
+        fmt=["%.1f", "%.2f", "%.0f", "%.0f", "%.9f"]
+    )
+    print("\nTabla guardada:", salida_csv.name)
+else:
+    print("\nLa tabla ya existe, no se sobrescribe.")
+
+print("\nAnalisis de estabilidad terminado.")
+
 # %%
