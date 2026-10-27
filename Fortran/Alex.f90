@@ -567,16 +567,19 @@ module objetivo_2
         close(177)
     end subroutine verlet_doblepozo
 
-    subroutine verlet_doblepozo_testancia(pasos,h,xo,po,m,A,beta_inv,eta,F)
+    subroutine verlet_doblepozo_testancia(pasos,h,xo,po,m,A,beta_inv,eta,F, media)
         implicit none
         integer, intent(in) :: pasos
         real, intent(in) :: h, xo, po, m, A, beta_inv, eta, F
+        real, intent(out) :: media
         real :: x, p, n1, n2, z_det, verlet_a, verlet_b, aux, t_min
-        integer :: i, Contador
+        integer :: i, Contador, Contador2
         
         Contador=0
+        Contador2=0
         x = xo
         p = po
+        media=0
 
         if (eta < 0.1 .and. abs(A-0.5) < 1.0e-6) then
             t_min = 150.0
@@ -586,11 +589,13 @@ module objetivo_2
             t_min = 20.0         ! eta intermedio
         else if (eta < 1.0 .and. abs(A-1.0) < 1.0e-6) then
             t_min = 50.0
+        else if (eta >= 1.0 .and. abs(A-0.5) < 1.0e-6) then
+            t_min = 20.0
         else
             t_min = 50.0
         end if
 
-        open(unit=200, file="t_estancia_only.txt", status="replace")
+        !open(unit=200, file="t_estancia_only.txt", status="replace")
         z_det=sqrt(2.0*eta*m*beta_inv*h)
         verlet_a = (1-(eta*h)/2)/(1+(eta*h)/2)
         verlet_b = 1/(1+(eta*h)/2)
@@ -606,7 +611,10 @@ module objetivo_2
             if(x*aux>0.0) then
                 Contador=Contador+1
             else
-                if (contador*h>t_min) write(200,*) Contador*h
+                if (Contador*h>t_min) then!write(200,*) Contador*h
+                    Contador2=Contador2 + 1
+                    media = media + Contador*h
+                end if
                 Contador = 0
             end if
 
@@ -617,19 +625,26 @@ module objetivo_2
             if(x*aux>0.0) then
                 Contador=Contador+1
             else
-                if (contador*h>t_min) write(200,*) Contador*h
+                if (Contador*h>t_min) then!write(200,*) Contador*h
+                    media = media + Contador*h
+                    Contador2=Contador2 + 1
+                end if
                 Contador = 0
             end if
 
         end do
 
-        close(200)
+        media=real(media)/real(Contador2)
+
+        !close(200)
+
     end subroutine verlet_doblepozo_testancia
 
-    subroutine verlet_dp_fuerza(pasos,h,xo,po,m,A,beta_inv,eta,F)
+    subroutine verlet_dp_fuerza(pasos,h,xo,po,m,A,beta_inv,eta,F,frac)
         implicit none
         integer, intent(in) :: pasos
         real, intent(in) :: h, xo, po, m, A, beta_inv, eta, F
+        real, intent(out) :: frac
         real :: x, p, n1, n2, z_det, verlet_a, verlet_b, aux
         integer :: i, Contador
         
@@ -665,6 +680,8 @@ module objetivo_2
             end if
 
         end do
+
+        frac = real(Contador)/real(pasos + 1)
 
         print *, "Fraccion de tiempo en el pozo 2: ", real(Contador)/real(pasos)
 
@@ -1071,49 +1088,83 @@ program main
 
 !OBJETIVO 2
 
-    !integer :: tiempo, pasos
-    !real :: F,x0,p0,A, h, m, beta_inv, eta
-
-    !tiempo=500000
-    !h=0.001
-    !pasos=int(real(tiempo)/h)
+    integer, parameter :: nEta = 6
+    integer :: tiempo, pasos, i, u
     
-    !x0=1.0
-    !p0=0.0
-    !F=-0.80
-    !A=0.5
-    !m = 1.0
-    !beta_inv = 0.2
-    !eta = 0.4
+    real :: etas(nEta)
+    real :: x0, p0, A, h, m, beta_inv, F
+    real :: media
+
+    tiempo=1500000
+    h=0.001
+    pasos=nint(real(tiempo)/h)
+    
+    x0=1.0
+    p0=0.0
+    F=0
+    A=0.5
+    m = 1.0
+    beta_inv = 0.2
+
 
 !OBJETIVO 3
 
-    integer :: i
-    integer, parameter :: n=6
-    real(dp) :: h, m, ke, beta_inv, eta, l0
-    real(dp) :: r(3,n), p(3,n)
-    integer :: tiempo, pasos, dataframe
+    !integer :: i
+    !integer, parameter :: n=6
+    !real(dp) :: h, m, ke, beta_inv, eta, l0
+    !real(dp) :: r(3,n), p(3,n)
+    !integer :: tiempo, pasos, dataframe
 
 
-    tiempo=1500
-    h=0.001_dp
-    pasos=int(real(tiempo,dp)/h)
-    l0=1.0_dp
-    do i=1, n
-        r(:,i)=[real(i-1,dp)*l0, 0.0_dp, 0.0_dp]
+    !tiempo=1500
+    !h=0.001_dp
+    !pasos=int(real(tiempo,dp)/h)
+    !l0=1.0_dp
+    !do i=1, n
+    !    r(:,i)=[real(i-1,dp)*l0, 0.0_dp, 0.0_dp]
+    !end do
+    !p=0.0_dp
+    !m=1.0_dp
+    !ke=100.0_dp
+    !beta_inv=1.0_dp
+    !eta=1.0_dp
+    !dataframe=50
+
+
+    !call radio_giro(pasos,h,r,p,m,ke,beta_inv,eta,l0)
+    !call VMD(pasos,h,r,p,m,ke,beta_inv,eta,l0,dataframe)
+
+    etas = [ 1.00, 1.50, 2.00, 3.00, 5.00, 10.00 ]
+
+    open(newunit=u, file="t_estancia_media_eta.txt", &
+     status="replace", action="write")
+
+    write(u,'(A)') '# Tiempo medio de estancia en funcion de eta'
+    write(u,'(A,F8.3,A,F8.3,A,F8.3,A,F8.3)') &
+        '# tiempo=', real(tiempo), ', h=', h, &
+        ', A=', A, ', F=', F
+
+    write(u,'(A)') '# eta     tiempo_medio_estancia'
+
+    do i = 1, nEta
+
+        call verlet_doblepozo_testancia( &
+            pasos, h, x0, p0, m, A, beta_inv, &
+            etas(i), F, media)
+
+        write(u,'(F10.5,1X,ES16.7)') etas(i), media
+
+        flush(u)
+
+        print *, 'eta = ', etas(i), &
+                '  tiempo medio de estancia = ', media
+
     end do
-    p=0.0_dp
-    m=1.0_dp
-    ke=100.0_dp
-    beta_inv=1.0_dp
-    eta=1.0_dp
-    dataframe=50
 
+    close(u)
 
-    call radio_giro(pasos,h,r,p,m,ke,beta_inv,eta,l0)
-    call VMD(pasos,h,r,p,m,ke,beta_inv,eta,l0,dataframe)
-    !call verlet_dp_fuerza(pasos,h,x0,p0,m,A,beta_inv,eta,F)
-
-    print *, "Pulsa ENTER para salir..."
+    print *, 'Resultados guardados en t_estancia_media_eta.txt'
+    print *, 'Pulsa ENTER para salir...'
     read(*,*)
+
 end program main

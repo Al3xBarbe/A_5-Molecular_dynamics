@@ -1038,29 +1038,83 @@ if False:
     plt.show()
     plt.close()
 
-#fraccion de ocupacion en funcion de la fuerza
-if False:
-    ruta = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\OBJETIVO_2\Fracc_ocup(F)\fracc_p2(F)_3.txt"
+if True:
+    ruta = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\t_estancia_media_A0.5.txt"
+    A = 0.5
 
     datos = np.loadtxt(ruta, comments="#", ndmin=2)
-
-    x = datos[:, 0]
+    eta = datos[:, 0]
     y = datos[:, 1]
 
-    plt.figure(figsize=(8, 5))
-    plt.plot(x, y, "o-", markersize=4)
-    plt.xlabel("Fuerza")
-    plt.ylabel("Fracción de ocupación del pozo 2")
-    plt.title("Dependencia de la fracción de ocupación del pozo 2 con la fuerza")
-    plt.grid(True)
+    
+    fig, ax = plt.subplots(figsize=(8, 5))
 
-    # Leyenda solo con texto (sin símbolo)
-    plt.plot([], [], " ", label="Tiempo = 500000\nA = 0.5\n$\\eta$ = 1.0")
-    plt.legend(handlelength=0, handletextpad=0)
+    ax.scatter(eta, y, color="tab:red", s=20, zorder=3, label="Simulación")
+    ax.set_title(fr"Tiempo medio para diferentes valores de η (A={A})")
+    ax.set_xlabel("Eta")
+    ax.set_ylabel("Tiempo medio de estancia")
+    ax.grid(alpha=0.3)
 
     plt.tight_layout()
+    plt.savefig(
+        fr"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\Tau_estancia_A{A}.png",
+        dpi=300, bbox_inches="tight"
+    )
     plt.show()
+    plt.close()
+#fraccion de ocupacion en funcion de la fuerza
 
+from scipy.optimize import curve_fit
+
+if False:
+    ruta = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\Ocup(f)_A1.0_eta1.0.txt"
+    A = 1.0
+    eta = 1.0
+
+    datos = np.loadtxt(ruta, comments="#", ndmin=2)
+    F = datos[:, 0]
+    y = datos[:, 1]
+
+    # Funcion de ajuste: P2(F) = 1 / (1 + exp(-2*beta*F)),  parametro libre: beta
+    def sigmoide(F, beta):
+        return 1.0 / (1.0 + np.exp(-2.0 * beta * F))
+
+    popt, pcov = curve_fit(sigmoide, F, y, p0=[1.0])
+    beta = popt[0]
+    beta_err = np.sqrt(np.diag(pcov))[0]
+    kT = 1.0 / beta
+    kT_err = beta_err / beta**2          # propagación: d(1/beta) = dbeta / beta^2
+
+    # Coeficiente de determinación
+    R2 = 1 - np.sum((y - sigmoide(F, beta))**2) / np.sum((y - y.mean())**2)
+
+    print(f"beta = {beta:.4f} ± {beta_err:.4f}")
+    print(f"kBT  = {kT:.4f} ± {kT_err:.4f}")
+    print(f"R^2  = {R2:.5f}")
+
+    F_fit = np.linspace(F.min(), F.max(), 300)
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    ax.scatter(F, y, color="tab:red", s=20, zorder=3, label="Simulación")
+    ax.plot(F_fit, sigmoide(F_fit, beta), "k--", linewidth=1.0,
+            label=rf"Ajuste: $1/(1+e^{{-2\beta F}})$" "\n"
+                  rf"$\beta={beta:.3f}\pm{beta_err:.3f}$, $k_BT={kT:.3f}$" "\n"
+                  rf"$R^2={R2:.4f}$")
+
+    ax.set_title(fr"Fracción de ocupación frente a una fuerza (A={A}, η={eta})")
+    ax.set_xlabel("Fuerza")
+    ax.set_ylabel("Fracción de ocupación")
+    ax.grid(alpha=0.3)
+    ax.legend(loc="upper left")
+
+    plt.tight_layout()
+    plt.savefig(
+        fr"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Py\plots\Fit_sigmoide_A{A}_eta{eta}.png",
+        dpi=300, bbox_inches="tight"
+    )
+    plt.show()
+    plt.close()
 
 
 
@@ -2267,6 +2321,8 @@ if False:
     Ep_esp = 0.5 * (N - 1) * beta_inv
     Ep_esp2 = ke/2 * (3*beta_inv*beta_inv/(ke^2) + l0*l0*beta_inv/ke)/(beta_inv/ke + l0*l0)
 
+    
+
     fig, axs = plt.subplots(1, 2, figsize=(13, 5))
     fig.suptitle(rf"Termalización polímero ($N={N}$, $k_e={ke:g}$)")
 
@@ -2321,7 +2377,7 @@ if False:
     plt.close()
 
 #Valor medio Rg^2
-if True:
+if False:
     ruta = r"C:\Users\MSI\Desktop\4 FISICA\TeFi_III\A_5\Fortran\Radio_giro.txt"
     N = 6             # número de monómeros
     ke = 100.0        # constante del muelle
@@ -2450,213 +2506,5 @@ if False:
 
 
 
-
-# %%
-# ============================================================
-# OBJETIVO 3 - EQUIPARTICION DEL POLIMERO
-# ke = 1000, N = 8, 16, 32, 64
-# GRAFICAS CON ZOOM Y FORMULAS TEORICAS
-# ============================================================
-
-import numpy as np
-import matplotlib.pyplot as plt
-from pathlib import Path
-
-base = Path.home() / "Documents/A_5-Molecular_dynamics"
-
-# Parametros
-valores_N = [8, 16, 32, 64]
-
-ke = 1000
-kBT = 1.0
-l0 = 1.0
-
-# Carpetas
-carpeta_datos = (
-    base / "Py/plots/OBJETIVO_3/Datos/k1000/EQUIP_E"
-)
-
-carpeta_salida = (
-    base / "Py/plots/OBJETIVO_3/EQUIP_E/k1000"
-)
-
-carpeta_salida.mkdir(parents=True, exist_ok=True)
-
-# Comprobar archivos de salida antes de generar figuras
-for N in valores_N:
-    salida = carpeta_salida / f"Equip_polimero_N{N}_ke{ke}_zoom.png"
-
-    if salida.exists():
-        raise FileExistsError(
-            f"El archivo ya existe: {salida}"
-        )
-
-# ============================================================
-# BUCLE SOBRE LOS DISTINTOS TAMANOS
-# ============================================================
-
-for N in valores_N:
-
-    archivo = (
-        carpeta_datos /
-        f"Termalizacion_polimero_N{N}_ke{ke}.txt"
-    )
-
-    # Leer datos de Fortran
-    t, K_m, V_m = np.loadtxt(archivo, unpack=True)
-
-    # Valores teoricos
-    K_teor = 3 * N * kBT / 2
-
-    sigma2 = kBT / ke
-
-    V_enlace = (kBT / 2) * (
-        (l0**2 + 3*sigma2) /
-        (l0**2 + sigma2)
-    )
-
-    V_teor = (N - 1) * V_enlace
-
-    # Imprimir resultados
-    print(f"\nN = {N}, ke = {ke}")
-    print(f"Tiempo final = {t[-1]:.2f}")
-    print(f"<K> simulacion = {K_m[-1]:.5f}")
-    print(f"<K> teorico    = {K_teor:.5f}")
-    print(f"<V> simulacion = {V_m[-1]:.5f}")
-    print(f"<V> teorico    = {V_teor:.5f}")
-
-    # ========================================================
-    # CREAR FIGURA
-    # ========================================================
-
-    fig, axs = plt.subplots(1, 2, figsize=(15, 6))
-
-    datos = [
-        (K_m, K_teor, "Energía cinética media", "tab:blue"),
-        (V_m, V_teor, "Energía potencial media", "tab:green")
-    ]
-
-    for ax, (energia, valor_teor, titulo, color) in zip(axs, datos):
-
-        # Grafica principal
-        ax.plot(
-            t, energia,
-            color=color,
-            linewidth=1
-        )
-
-        # Formulas en la leyenda
-        if ax is axs[0]:
-            etiqueta = (
-                rf"$\langle K\rangle = "
-                rf"\frac{{3N}}{{2}}k_BT = {K_teor:.3f}$"
-            )
-        else:
-            etiqueta = (
-                rf"$\langle V\rangle \simeq "
-                rf"\frac{{N-1}}{{2}}k_BT"
-                rf" = {V_teor:.3f}$"
-            )
-
-        # Linea teorica
-        ax.axhline(
-            valor_teor,
-            color="black",
-            linestyle="--",
-            linewidth=1,
-            label=etiqueta
-        )
-
-        ax.set_title(titulo)
-        ax.set_xlabel("Tiempo")
-        ax.set_ylabel("Energía media")
-        ax.grid(alpha=0.3)
-        ax.legend(loc="upper left")
-
-        # ====================================================
-        # ZOOM: ULTIMAS 6000 UNIDADES DE TIEMPO
-        # ====================================================
-
-        t_inicio = max(t[0], t[-1] - 6000)
-        mascara = t >= t_inicio
-
-        ax_zoom = ax.inset_axes(
-            [0.45, 0.12, 0.52, 0.43]
-        )
-
-        ax_zoom.plot(
-            t, energia,
-            color=color,
-            linewidth=1
-        )
-
-        ax_zoom.axhline(
-            valor_teor,
-            color="black",
-            linestyle="--",
-            linewidth=1
-        )
-
-        ax_zoom.set_xlim(t_inicio, t[-1])
-
-        valores_zoom = energia[mascara]
-
-        y_min = min(np.min(valores_zoom), valor_teor)
-        y_max = max(np.max(valores_zoom), valor_teor)
-
-        margen = max((y_max - y_min) * 0.15, 0.005)
-
-        ax_zoom.set_ylim(
-            y_min - margen,
-            y_max + margen
-        )
-
-        ax_zoom.grid(alpha=0.3)
-        ax_zoom.tick_params(
-            axis="both",
-            labelsize=8
-        )
-
-        # Recuadro y lineas de conexion
-        ax.indicate_inset_zoom(
-            ax_zoom,
-            edgecolor="gray"
-        )
-
-    # Titulo general
-    fig.suptitle(
-        rf"Termalización del polímero ($N={N}$, $k_e={ke}$)",
-        fontsize=16
-    )
-
-    plt.tight_layout()
-
-    # ========================================================
-    # GUARDAR FIGURA
-    # ========================================================
-
-    salida = (
-        carpeta_salida /
-        f"Equip_polimero_N{N}_ke{ke}_zoom.png"
-    )
-
-    if salida.exists():
-        plt.close(fig)
-        raise FileExistsError(
-            f"No se sobrescribira el archivo: {salida}"
-        )
-
-    plt.savefig(
-        salida,
-        dpi=300,
-        bbox_inches="tight"
-    )
-
-    plt.show()
-    plt.close()
-
-    print("Gráfica guardada en:", salida)
-
-print("\nTodas las gráficas generadas.")
 
 # %%
