@@ -1052,230 +1052,727 @@ module objetivo_3
 end module objetivo_3
 
 
+
+
+
 program main
-    use objetivo_3, only: dp, fuerzas
-    implicit none
 
-    integer, parameter :: tamanos(*) = [4, 6, 8, 10, 12, 16, 20, &
-                                         24, 28, 32, 40, 48, 64]
-    real(dp), parameter :: h = 0.001_dp, m = 1.0_dp
-    real(dp), parameter :: ke = 1000.0_dp, kBT = 1.0_dp
-    real(dp), parameter :: eta = 1.0_dp, l0 = 1.0_dp
-    real(dp) :: t_termal, t_medicion
-    integer, parameter :: cada_muestra = 500
-    integer, parameter :: cada_guardado = 500000
-    real(dp), parameter :: pi = acos(-1.0_dp)
+  use iso_fortran_env, only: real64, int64, output_unit
+  use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+  implicit none
 
-    integer :: j, pasos_termal, pasos_medicion
-    real(dp) :: a, b, amplitud_ruido
-    character(len=240) :: archivo
-    logical :: existe
+  integer, parameter :: dp = real64
 
-    if (mod(cada_guardado, cada_muestra) /= 0) then
-        error stop 'Frecuencias de muestreo incompatibles'
-    end if
+  ! ==========================================================
+  ! 1. PARAMETROS FISICOS
+  ! ==========================================================
 
-    a = (1.0_dp - eta*h/2.0_dp) / (1.0_dp + eta*h/2.0_dp)
-    b = 1.0_dp / (1.0_dp + eta*h/2.0_dp)
-    amplitud_ruido = sqrt(2.0_dp*eta*m*kBT*h)
+  integer, parameter :: sizes(10) = &
+       [4,8,12,16,20,24,32,40,48,64]
 
-    ! Verificar todas las salidas antes de comenzar un calculo largo.
-    do j = 1, size(tamanos)
-        call ruta_salida(tamanos(j), archivo)
-        inquire(file=trim(archivo), exist=existe)
-        if (existe) then
-            print *, 'Archivo ya existente: ', trim(archivo)
-            error stop 'No se sobreescribiran los resultados'
+  real(dp), parameter :: dt = 0.001_dp
+  real(dp), parameter :: ke = 1000.0_dp
+  real(dp), parameter :: kbt = 1.0_dp
+  real(dp), parameter :: l0 = 1.0_dp
+  real(dp), parameter :: masa = 1.0_dp
+  real(dp), parameter :: eta = 1.0_dp
+
+  integer, parameter :: nbloques = 20
+
+  ! Una muestra cada 50 unidades de tiempo
+  integer(int64), parameter :: salto_normal = 50000_int64
+
+  character(len=*), parameter :: ruta_normal = &
+       'Py/plots/OBJETIVO_3/Datos/k1000/EQUIP_E'
+
+  ! ==========================================================
+  ! 2. VARIABLES
+  ! ==========================================================
+
+  integer :: n, ix, j, ios, nsem
+  integer :: argumento_n
+  integer :: udatos, ubloques, umarca
+  integer, allocatable :: semillas(:)
+
+  integer(int64) :: nterm, nmed, salto
+  integer(int64) :: paso, paso_med
+  integer(int64) :: nmedidas, por_bloque
+  integer(int64) :: cont_bloque, num_bloque
+
+  real(dp) :: tterm, tmed
+  real(dp) :: a, b, ruido
+  real(dp) :: u, kin, rg, ree, rg2, ree2
+
+  real(dp) :: sk, sv, srg, sree, srg2, sree2
+  real(dp) :: bk, bv, brg, bree, brg2, bree2
+
+  real(dp), allocatable :: r(:,:), rnew(:,:)
+  real(dp), allocatable :: v(:,:), vnew(:,:)
+  real(dp), allocatable :: f(:,:), fnew(:,:), beta(:,:)
+
+  character(len=250) :: carpeta
+  character(len=250) :: archivo_d, archivo_b, archivo_m
+  character(len=80) :: arg
+  character(len=20) :: ns
+
+  logical :: existe, prueba
+  real(dp) :: spare
+  logical :: tiene_spare
+
+  ! ==========================================================
+  ! 3. ARGUMENTOS DE EJECUCION
+  ! ==========================================================
+
+  ! Sin argumentos: simula los 10 tamaños.
+  ! Con un N: simula solamente ese tamaño.
+  ! Con "prueba": realiza una prueba corta.
+
+  argumento_n = 0
+  prueba = .false.
+
+  if (command_argument_count() >= 1) then
+
+     call get_command_argument(1, arg)
+
+     if (trim(arg) == 'prueba') then
+        prueba = .true.
+     else
+        read(arg, *, iostat=ios) argumento_n
+
+        if (ios /= 0) error stop 'Argumento no valido'
+
+        if (.not. any(sizes == argumento_n)) then
+           error stop 'N no valido'
         end if
-    end do
+     end if
 
-    call random_seed()
-    print *, 'RADIO DE GIRO Y DISTANCIA ENTRE EXTREMOS - ke=', ke
-    print *, 'N:', tamanos
+  end if
 
-    do j = 1, size(tamanos)
-        ! Dedicar mas tiempo a las cadenas largas.
-        if (tamanos(j) == 64) then
-            t_termal = 40000.0_dp
-            t_medicion = 200000.0_dp
-        else if (tamanos(j) >= 40) then
-            t_termal = 20000.0_dp
-            t_medicion = 150000.0_dp
+  if (command_argument_count() >= 2) then
+
+     call get_command_argument(2, arg)
+
+     if (trim(arg) /= 'prueba') then
+        error stop 'Segundo argumento debe ser prueba'
+     end if
+
+     prueba = .true.
+
+  end if
+
+  if (prueba) then
+     carpeta = ruta_normal//'/PRUEBA'
+  else
+     carpeta = ruta_normal
+  end if
+
+  call execute_command_line( &
+       'mkdir -p "'//trim(carpeta)//'"', exitstat=ios)
+
+  if (ios /= 0) error stop 'No se puede crear carpeta'
+
+  ! ==========================================================
+  ! 4. INTEGRADOR GJF
+  ! ==========================================================
+
+  a = (1.0_dp - eta*dt/(2.0_dp*masa)) / &
+      (1.0_dp + eta*dt/(2.0_dp*masa))
+
+  b = 1.0_dp / &
+      (1.0_dp + eta*dt/(2.0_dp*masa))
+
+  ruido = sqrt(2.0_dp*eta*kbt*dt)
+
+  call random_seed(size=nsem)
+  allocate(semillas(nsem))
+
+  print *, '============================================'
+  print *, 'OBJETIVO 3 - SIMULACIONES ke = 1000'
+  print *, 'h = ', dt
+  print *, 'N = 4,8,12,16,20,24,32,40,48,64'
+  print *, '============================================'
+
+  flush(output_unit)
+
+  ! ==========================================================
+  ! 5. BUCLE SOBRE TAMAÑOS DE CADENA
+  ! ==========================================================
+
+  do ix = 1, size(sizes)
+
+     n = sizes(ix)
+
+     if (argumento_n /= 0 .and. n /= argumento_n) cycle
+
+     ! -------------------------------------------------------
+     ! TIEMPOS ACORDADOS
+     ! -------------------------------------------------------
+
+     tterm = 1000000.0_dp
+
+     select case (n)
+
+     case (4,8,12,16,20)
+        tmed = 3000000.0_dp
+
+     case (24)
+        tmed = 2750000.0_dp
+
+     case (32)
+        tmed = 2500000.0_dp
+
+     case (40)
+        tmed = 2250000.0_dp
+
+     case (48,64)
+        tmed = 2000000.0_dp
+
+     end select
+
+     salto = salto_normal
+
+     ! Prueba corta con los mismos parametros fisicos
+     if (prueba) then
+        tterm = 100.0_dp
+        tmed = 200.0_dp
+        salto = 1000_int64
+     end if
+
+     nterm = nint(tterm/dt, kind=int64)
+     nmed = nint(tmed/dt, kind=int64)
+
+     if (mod(nterm, salto) /= 0_int64) then
+        error stop 'Termalizacion no divisible por salto'
+     end if
+
+     if (mod(nmed, salto*nbloques) /= 0_int64) then
+        error stop 'Medicion no divisible en bloques'
+     end if
+
+     por_bloque = nmed / (salto*nbloques)
+
+     ! -------------------------------------------------------
+     ! NOMBRES DE ARCHIVOS
+     ! -------------------------------------------------------
+
+     write(ns, '(I0)') n
+
+     archivo_d = trim(carpeta)// &
+       '/Energia_Rg_Ree_N'//trim(ns)//'_ke1000_ULTRALARGA.txt'
+
+     archivo_b = trim(carpeta)// &
+       '/Bloques_N'//trim(ns)//'_ke1000_ULTRALARGA.txt'
+
+     archivo_m = trim(carpeta)// &
+       '/COMPLETADO_N'//trim(ns)//'_ke1000_ULTRALARGA.flag'
+
+     ! -------------------------------------------------------
+     ! PROTEGER LOS ARCHIVOS YA FINALIZADOS
+     ! -------------------------------------------------------
+
+     inquire(file=trim(archivo_m), exist=existe)
+
+     if (existe) then
+        print '(A,I0,A)', &
+          'N=', n, ': ya completado, se omite.'
+        cycle
+     end if
+
+     inquire(file=trim(archivo_d), exist=existe)
+
+     if (existe) then
+        error stop 'Existe un TXT parcial: revisarlo'
+     end if
+
+     inquire(file=trim(archivo_b), exist=existe)
+
+     if (existe) then
+        error stop 'Existe archivo parcial de bloques'
+     end if
+
+     ! -------------------------------------------------------
+     ! SEMILLA REPRODUCIBLE POR CADENA
+     ! -------------------------------------------------------
+
+     do j = 1, nsem
+        semillas(j) = 94717 + 1301*n + 41*j
+     end do
+
+     call random_seed(put=semillas)
+     tiene_spare = .false.
+
+     allocate(r(3,n), rnew(3,n))
+     allocate(v(3,n), vnew(3,n))
+     allocate(f(3,n), fnew(3,n), beta(3,n))
+
+     ! Inicializacion de equilibrio
+     call inicializar(n, r, v)
+     call fuerzas(n, r, f, u)
+
+     ! -------------------------------------------------------
+     ! ABRIR ARCHIVOS
+     ! -------------------------------------------------------
+
+     open(newunit=udatos, &
+       file=trim(archivo_d), &
+       status='new', action='write', iostat=ios)
+
+     if (ios /= 0) error stop 'Error abriendo datos'
+
+     open(newunit=ubloques, &
+       file=trim(archivo_b), &
+       status='new', action='write', iostat=ios)
+
+     if (ios /= 0) error stop 'Error abriendo bloques'
+
+     write(udatos, '(A)') &
+       '# t_med K V Rg Ree Rg2 Ree2 ' // &
+       'K_acum V_acum Rg_acum Ree_acum Rg2_acum Ree2_acum'
+
+     write(ubloques, '(A)') &
+       '# bloque t_inicio t_fin K_b V_b ' // &
+       'Rg_b Ree_b Rg2_b Ree2_b'
+
+     ! -------------------------------------------------------
+     ! INICIALIZAR PROMEDIOS
+     ! -------------------------------------------------------
+
+     sk=0.0_dp
+     sv=0.0_dp
+     srg=0.0_dp
+     sree=0.0_dp
+     srg2=0.0_dp
+     sree2=0.0_dp
+
+     bk=0.0_dp
+     bv=0.0_dp
+     brg=0.0_dp
+     bree=0.0_dp
+     brg2=0.0_dp
+     bree2=0.0_dp
+
+     nmedidas=0_int64
+     cont_bloque=0_int64
+     num_bloque=0_int64
+
+     print *
+     print '(A,I0,A,F12.0,A,F12.0)', &
+       'INICIO N=', n, &
+       ' / termalizacion=', tterm, &
+       ' / medicion=', tmed
+
+     flush(output_unit)
+
+     ! =======================================================
+     ! 6. INTEGRACION DE LANGEVIN
+     ! =======================================================
+
+     do paso = 1_int64, nterm+nmed
+
+        ! Generar impulsos aleatorios
+        call ruido_gauss(n, beta, ruido)
+
+        ! Nueva posicion mediante GJF
+        rnew = r + b*dt*v + &
+          (b*dt*dt/(2.0_dp*masa))*f + &
+          (b*dt/(2.0_dp*masa))*beta
+
+        ! Fuerzas y energia potencial nuevas
+        call fuerzas(n, rnew, fnew, u)
+
+        ! Nueva velocidad interna GJF
+        vnew = a*v + &
+          (dt/(2.0_dp*masa))*(a*f+fnew) + &
+          (b/masa)*beta
+
+        ! ====================================================
+        ! FASE DE MEDICION
+        ! ====================================================
+
+        if (paso > nterm) then
+
+           paso_med = paso-nterm
+
+           if (mod(paso_med, salto) == 0_int64) then
+
+              ! Energia cinetica estimada con 2GJ
+              kin = masa*sum((rnew-r)**2) / &
+                    (2.0_dp*b*dt*dt)
+
+              ! Radios y sus cuadrados
+              call radios(n, rnew, rg, ree, rg2, ree2)
+
+              ! Comprobacion de resultados no finitos
+              if (.not. ieee_is_finite(kin) .or. &
+                  .not. ieee_is_finite(u) .or. &
+                  .not. ieee_is_finite(rg2) .or. &
+                  .not. ieee_is_finite(ree2)) then
+                 error stop 'Valor no finito en medicion'
+              end if
+
+              nmedidas = nmedidas+1_int64
+              cont_bloque = cont_bloque+1_int64
+
+              ! Sumas acumuladas
+              sk = sk+kin
+              sv = sv+u
+
+              srg = srg+rg
+              sree = sree+ree
+
+              srg2 = srg2+rg2
+              sree2 = sree2+ree2
+
+              ! Sumas del bloque actual
+              bk = bk+kin
+              bv = bv+u
+
+              brg = brg+rg
+              bree = bree+ree
+
+              brg2 = brg2+rg2
+              bree2 = bree2+ree2
+
+              ! ----------------------------------------------
+              ! DATOS Y MEDIAS ACUMULADAS
+              ! ----------------------------------------------
+
+              write(udatos, '(13(ES23.14,1X))') &
+                real(paso_med,dp)*dt, &
+                kin, u, rg, ree, rg2, ree2, &
+                sk/real(nmedidas,dp), &
+                sv/real(nmedidas,dp), &
+                srg/real(nmedidas,dp), &
+                sree/real(nmedidas,dp), &
+                srg2/real(nmedidas,dp), &
+                sree2/real(nmedidas,dp)
+
+              ! ----------------------------------------------
+              ! MEDIAS DE 20 BLOQUES
+              ! ----------------------------------------------
+
+              if (cont_bloque == por_bloque) then
+
+                 num_bloque = num_bloque+1_int64
+
+                 write(ubloques, &
+                   '(I5,1X,8(ES23.14,1X))') &
+                   int(num_bloque), &
+                   real(num_bloque-1_int64,dp)* &
+                     tmed/real(nbloques,dp), &
+                   real(num_bloque,dp)* &
+                     tmed/real(nbloques,dp), &
+                   bk/real(cont_bloque,dp), &
+                   bv/real(cont_bloque,dp), &
+                   brg/real(cont_bloque,dp), &
+                   bree/real(cont_bloque,dp), &
+                   brg2/real(cont_bloque,dp), &
+                   bree2/real(cont_bloque,dp)
+
+                 bk=0.0_dp
+                 bv=0.0_dp
+                 brg=0.0_dp
+                 bree=0.0_dp
+                 brg2=0.0_dp
+                 bree2=0.0_dp
+
+                 cont_bloque=0_int64
+
+              end if
+
+           end if
+
+           ! Mostrar progreso de medicion
+           if (mod(paso_med, nmed/10_int64) == 0_int64) then
+
+              print '(A,I0,A,I0,A)', &
+                'N=', n, ' / medicion ', &
+                int(100_int64*paso_med/nmed), '%'
+
+              flush(output_unit)
+
+           end if
+
+        ! ====================================================
+        ! FASE DE TERMALIZACION
+        ! ====================================================
+
         else
-            t_termal = 10000.0_dp
-            t_medicion = 100000.0_dp
+
+           if (mod(paso, nterm/4_int64) == 0_int64) then
+
+              print '(A,I0,A,I0,A)', &
+                'N=', n, ' / termalizacion ', &
+                int(100_int64*paso/nterm), '%'
+
+              flush(output_unit)
+
+           end if
+
         end if
 
-        pasos_termal = nint(t_termal/h)
-        pasos_medicion = nint(t_medicion/h)
-        if (mod(pasos_medicion, cada_guardado) /= 0) then
-            error stop 'Tiempo de medicion incompatible con guardado'
-        end if
-        print *, 'N =', tamanos(j), ' termal =', t_termal, &
-                 ' medicion =', t_medicion
-        call simular_cadena(tamanos(j))
-    end do
-    print *, 'Barrido terminado'
+        ! Actualizar el estado del sistema
+        r = rnew
+        v = vnew
+        f = fnew
+
+     end do
+
+     ! =======================================================
+     ! 7. FINALIZACION
+     ! =======================================================
+
+     close(udatos, iostat=ios)
+     if (ios /= 0) error stop 'Error cerrando datos'
+
+     close(ubloques, iostat=ios)
+     if (ios /= 0) error stop 'Error cerrando bloques'
+
+     ! Marca de completado: solo al terminar correctamente
+     open(newunit=umarca, &
+       file=trim(archivo_m), &
+       status='new', action='write', iostat=ios)
+
+     if (ios /= 0) error stop 'No se crea marca'
+
+     write(umarca, '(A,I0)') 'N=', n
+     write(umarca, '(A,I0)') 'muestras=', nmedidas
+     write(umarca, '(A,F14.3)') 'k_e=', ke
+     write(umarca, '(A,F14.6)') 'h=', dt
+     write(umarca, '(A,F14.0)') 'termalizacion=', tterm
+     write(umarca, '(A,F14.0)') 'medicion=', tmed
+
+     close(umarca)
+
+     print *
+     print '(A,I0,A,F14.6,A,F14.6)', &
+       'FIN N=', n, &
+       ' <K>=', sk/real(nmedidas,dp), &
+       ' <V>=', sv/real(nmedidas,dp)
+
+     print '(A,F14.6,A,F14.6)', &
+       ' <Rg>=', srg/real(nmedidas,dp), &
+       ' <Ree>=', sree/real(nmedidas,dp)
+
+     flush(output_unit)
+
+     deallocate(r, rnew, v, vnew)
+     deallocate(f, fnew, beta)
+
+  end do
+
+  deallocate(semillas)
+
+  print *
+  print *, 'FIN DE LA TANDA ke = 1000'
 
 contains
 
-    subroutine ruta_salida(n, nombre)
-        integer, intent(in) :: n
-        character(len=*), intent(out) :: nombre
-        character(len=16) :: texto_n
-        write(texto_n,'(I0)') n
-        nombre = 'Py/plots/OBJETIVO_3/Datos/k1000/RG/' // &
-                 'Rg_Ree_N' // trim(texto_n) // '_ke1000.txt'
-    end subroutine ruta_salida
+  ! ==========================================================
+  ! 8. GENERADOR GAUSSIANO
+  ! ==========================================================
 
-    subroutine normales(z1,z2)
-        real(dp), intent(out) :: z1,z2
-        real(dp) :: u1,u2,rho,theta
-        call random_number(u1)
-        call random_number(u2)
-        u1 = max(u1,tiny(1.0_dp))
-        rho = sqrt(-2.0_dp*log(u1))
-        theta = 2.0_dp*pi*u2
-        z1 = rho*cos(theta)
-        z2 = rho*sin(theta)
-    end subroutine normales
+  real(dp) function gauss() result(z)
 
-    subroutine inicializar(n,r,p)
-        integer, intent(in) :: n
-        real(dp), intent(out) :: r(3,n),p(3,n)
-        real(dp) :: z1,z2,z3,z4,orientacion(3),longitud
-        integer :: i,j
-        r(:,1) = 0.0_dp
-        do i = 2,n
-            call normales(z1,z2)
-            call normales(z3,z4)
-            orientacion = [z1,z2,z3]
-            orientacion = orientacion/sqrt(sum(orientacion**2))
-            longitud = l0 + sqrt(kBT/ke)*z4
-            do while (longitud <= 0.0_dp)
-                call normales(z3,z4)
-                longitud = l0 + sqrt(kBT/ke)*z4
-            end do
-            r(:,i) = r(:,i-1) + longitud*orientacion
-        end do
-        ! Todos los N utilizados son pares.
-        do i = 1,n,2
-            do j = 1,3
-                call normales(z1,z2)
-                p(j,i) = sqrt(m*kBT)*z1
-                p(j,i+1) = sqrt(m*kBT)*z2
-            end do
-        end do
-    end subroutine inicializar
+    real(dp) :: x, y, s, factor
 
-    subroutine paso_verlet(n,r,p,f,ue,f_anterior,ruido)
-        integer, intent(in) :: n
-        real(dp), intent(inout) :: r(3,n),p(3,n),f(3,n),ue
-        real(dp), intent(out) :: f_anterior(3,n),ruido(3,n)
-        integer :: i,j
-        real(dp) :: z1,z2
-        do i = 1,n,2
-            do j = 1,3
-                call normales(z1,z2)
-                ruido(j,i) = amplitud_ruido*z1
-                ruido(j,i+1) = amplitud_ruido*z2
-            end do
-        end do
-        f_anterior = f
-        r = r + b*h*p/m + b*h*h*f_anterior/(2.0_dp*m) + &
-            b*h*ruido/(2.0_dp*m)
-        call fuerzas(r,f,ue,l0,ke)
-        p = a*p + h*(a*f_anterior+f)/2.0_dp + b*ruido
-    end subroutine paso_verlet
+    if (tiene_spare) then
 
-    subroutine medir_geometria(r,rg2,ree2)
-        real(dp), intent(in) :: r(:,:)
-        real(dp), intent(out) :: rg2,ree2
-        real(dp) :: rcm(3)
-        integer :: n,i
-        n = size(r,2)
-        rcm = sum(r,dim=2)/real(n,dp)
-        rg2 = 0.0_dp
-        do i = 1,n
-            rg2 = rg2 + sum((r(:,i)-rcm)**2)
-        end do
-        rg2 = rg2/real(n,dp)
-        ree2 = sum((r(:,n)-r(:,1))**2)
-    end subroutine medir_geometria
+       z = spare
+       tiene_spare = .false.
 
-    subroutine simular_cadena(n)
-        integer, intent(in) :: n
-        real(dp), allocatable :: r(:,:),p(:,:),f(:,:),f_anterior(:,:),ruido(:,:)
-        real(dp) :: ue,rg2,ree2,suma_rg2,suma_ree2
-        real(dp) :: bloque_rg2,bloque_ree2,mitad1_rg2,mitad2_rg2
-        integer :: paso,unidad,n_muestras,n_bloque,n_mitad1,n_mitad2
-        character(len=240) :: nombre
+    else
 
-        allocate(r(3,n),p(3,n),f(3,n),f_anterior(3,n),ruido(3,n))
-        call inicializar(n,r,p)
-        call fuerzas(r,f,ue,l0,ke)
+       do
 
-        print *, 'N=',n,' empezando termalizacion'
-        do paso = 1,pasos_termal
-            call paso_verlet(n,r,p,f,ue,f_anterior,ruido)
-        end do
+          call random_number(x)
+          call random_number(y)
 
-        call ruta_salida(n,nombre)
-        open(newunit=unidad,file=trim(nombre),status='new',action='write')
-        write(unidad,'(A)') &
-             '# t_medicion  Rg2_acumulado  Ree2_acumulado  Rg2_bloque  Ree2_bloque'
-        suma_rg2=0.0_dp
-        suma_ree2=0.0_dp
-        bloque_rg2=0.0_dp
-        bloque_ree2=0.0_dp
-        mitad1_rg2=0.0_dp
-        mitad2_rg2=0.0_dp
-        n_muestras=0
-        n_bloque=0
-        n_mitad1=0
-        n_mitad2=0
+          x = 2.0_dp*x-1.0_dp
+          y = 2.0_dp*y-1.0_dp
 
-        print *, 'N=',n,' empezando medicion'
-        do paso=1,pasos_medicion
-            call paso_verlet(n,r,p,f,ue,f_anterior,ruido)
-            if (mod(paso,cada_muestra)==0) then
-                call medir_geometria(r,rg2,ree2)
-                n_muestras=n_muestras+1
-                n_bloque=n_bloque+1
-                suma_rg2=suma_rg2+rg2
-                suma_ree2=suma_ree2+ree2
-                bloque_rg2=bloque_rg2+rg2
-                bloque_ree2=bloque_ree2+ree2
-                if (paso <= pasos_medicion/2) then
-                    mitad1_rg2=mitad1_rg2+rg2
-                    n_mitad1=n_mitad1+1
-                else
-                    mitad2_rg2=mitad2_rg2+rg2
-                    n_mitad2=n_mitad2+1
-                end if
-            end if
-            if (mod(paso,cada_guardado)==0) then
-                write(unidad,'(5(ES21.12,1X))') &
-                    real(paso,dp)*h, &
-                    suma_rg2/real(n_muestras,dp), &
-                    suma_ree2/real(n_muestras,dp), &
-                    bloque_rg2/real(n_bloque,dp), &
-                    bloque_ree2/real(n_bloque,dp)
-                bloque_rg2=0.0_dp
-                bloque_ree2=0.0_dp
-                n_bloque=0
-            end if
-        end do
-        close(unidad)
-        print *, 'N=',n,' <Rg2>=',suma_rg2/real(n_muestras,dp), &
-                 ' <Ree2>=',suma_ree2/real(n_muestras,dp)
-        print *, '  <Rg2> primera mitad=',mitad1_rg2/real(n_mitad1,dp)
-        print *, '  <Rg2> segunda mitad=',mitad2_rg2/real(n_mitad2,dp)
-        print *, 'Guardado: ',trim(nombre)
-        deallocate(r,p,f,f_anterior,ruido)
-    end subroutine simular_cadena
+          s = x*x+y*y
+
+          if (s > 0.0_dp .and. s < 1.0_dp) exit
+
+       end do
+
+       factor = sqrt(-2.0_dp*log(s)/s)
+
+       z = x*factor
+       spare = y*factor
+
+       tiene_spare = .true.
+
+    end if
+
+  end function gauss
+
+  ! ==========================================================
+  ! 9. LONGITUD INICIAL CON JACOBIANO RADIAL
+  ! ==========================================================
+
+  real(dp) function longitud() result(l)
+
+    real(dp) :: s2, xstar, cota, x, p, uale
+
+    s2 = kbt/ke
+
+    xstar = (-l0+sqrt(l0*l0+16.0_dp*s2))/2.0_dp
+
+    cota = (l0+xstar)**2 * &
+           exp(-xstar*xstar/(4.0_dp*s2))
+
+    do
+
+       x = sqrt(2.0_dp*s2)*gauss()
+       l = l0+x
+
+       if (l <= 0.0_dp) cycle
+
+       p = l*l*exp(-x*x/(4.0_dp*s2))/cota
+
+       call random_number(uale)
+
+       if (uale <= min(1.0_dp,p)) exit
+
+    end do
+
+  end function longitud
+
+  ! ==========================================================
+  ! 10. INICIALIZACION TERMICA
+  ! ==========================================================
+
+  subroutine inicializar(nloc, pr, vr)
+
+    integer, intent(in) :: nloc
+
+    real(dp), intent(out) :: pr(3,nloc)
+    real(dp), intent(out) :: vr(3,nloc)
+
+    real(dp) :: z, phi, sint, l, ale
+    integer :: i, jj
+
+    pr(:,1) = 0.0_dp
+
+    do jj = 2, nloc
+
+       l = longitud()
+
+       call random_number(ale)
+       z = 2.0_dp*ale-1.0_dp
+
+       call random_number(ale)
+       phi = 2.0_dp*acos(-1.0_dp)*ale
+
+       sint = sqrt(max(0.0_dp,1.0_dp-z*z))
+
+       pr(:,jj) = pr(:,jj-1) + &
+          l*[sint*cos(phi), sint*sin(phi), z]
+
+    end do
+
+    ! Maxwell-Boltzmann
+    do jj = 1, nloc
+       do i = 1, 3
+          vr(i,jj) = sqrt(kbt/masa)*gauss()
+       end do
+    end do
+
+  end subroutine inicializar
+
+  ! ==========================================================
+  ! 11. RUIDO ESTOCASTICO
+  ! ==========================================================
+
+  subroutine ruido_gauss(nloc, bt, amp)
+
+    integer, intent(in) :: nloc
+
+    real(dp), intent(in) :: amp
+    real(dp), intent(out) :: bt(3,nloc)
+
+    integer :: i, jj
+
+    do jj = 1, nloc
+       do i = 1, 3
+          bt(i,jj) = amp*gauss()
+       end do
+    end do
+
+  end subroutine ruido_gauss
+
+  ! ==========================================================
+  ! 12. FUERZAS Y ENERGIA POTENCIAL
+  ! ==========================================================
+
+  subroutine fuerzas(nloc, pr, ff, ep)
+
+    integer, intent(in) :: nloc
+
+    real(dp), intent(in) :: pr(3,nloc)
+    real(dp), intent(out) :: ff(3,nloc), ep
+
+    real(dp) :: d(3), l, c
+    integer :: jj
+
+    ff = 0.0_dp
+    ep = 0.0_dp
+
+    do jj = 1, nloc-1
+
+       d = pr(:,jj+1)-pr(:,jj)
+
+       l = sqrt(sum(d*d))
+
+       if (l < 1.0e-12_dp) then
+          error stop 'Enlace de longitud nula'
+       end if
+
+       c = ke*(l-l0)/l
+
+       ff(:,jj) = ff(:,jj)+c*d
+       ff(:,jj+1) = ff(:,jj+1)-c*d
+
+       ep = ep + 0.5_dp*ke*(l-l0)**2
+
+    end do
+
+  end subroutine fuerzas
+
+  ! ==========================================================
+  ! 13. RADIO DE GIRO Y DISTANCIA ENTRE EXTREMOS
+  ! ==========================================================
+
+  subroutine radios(nloc, pr, rg, ree, rg2, ree2)
+
+    integer, intent(in) :: nloc
+
+    real(dp), intent(in) :: pr(3,nloc)
+
+    real(dp), intent(out) :: rg, ree, rg2, ree2
+
+    real(dp) :: cm(3)
+    integer :: jj
+
+    cm = sum(pr, dim=2)/real(nloc,dp)
+
+    rg2 = 0.0_dp
+
+    do jj = 1, nloc
+
+       rg2 = rg2+sum((pr(:,jj)-cm)**2)
+
+    end do
+
+    rg2 = rg2/real(nloc,dp)
+
+    ree2 = sum((pr(:,nloc)-pr(:,1))**2)
+
+    rg = sqrt(rg2)
+    ree = sqrt(ree2)
+
+  end subroutine radios
 
 end program main
-
-
-
