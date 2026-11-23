@@ -4701,3 +4701,299 @@ print("26 graficas en total")
 print("CSV de parametros y errores guardado")
 print("\nTodos los archivos nuevos incluyen CON_ERRORES.")
 # %%
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 3 - EQUIPARTICION NORMALIZADA
+#
+# Energias cinetica y potencial en una misma grafica
+# Medias acumuladas normalizadas
+#
+# N = 4, 12, 20, 40, 64
+# ke = 100 y 1000
+# h = 0.001
+# ============================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+# ============================================================
+# 1. PARAMETROS
+# ============================================================
+
+BASE = (
+    Path.home()
+    / "Documents/A_5-Molecular_dynamics"
+    / "Py/plots/OBJETIVO_3"
+)
+
+N_VALORES = [4, 12, 20, 40, 64]
+KE_VALORES = [100, 1000]
+
+KBT = 1.0
+L0 = 1.0
+H = 0.001
+
+ETIQUETAS = {
+    100: "SUPERLARGA",
+    1000: "ULTRALARGA"
+}
+
+# Fraccion inicial de la trayectoria que se muestra
+# 1.0 = toda
+# 0.1 = primer 10 %
+FRACCION_TIEMPO = 1.0
+
+# ============================================================
+# 2. ENERGIAS TEORICAS
+# ============================================================
+
+def energia_cinetica_teorica(N):
+
+    return 1.5 * N * KBT
+
+
+def energia_potencial_teorica(N, ke):
+
+    sigma2 = KBT / ke
+
+    V_arm = 0.5 * (N - 1) * KBT
+
+    V_jac = V_arm * (
+        (L0**2 + 3 * sigma2)
+        / (L0**2 + sigma2)
+    )
+
+    return V_arm, V_jac
+
+
+# ============================================================
+# 3. GENERAR GRAFICA
+# ============================================================
+
+def graficar_energia(N, ke):
+
+    etiqueta = ETIQUETAS[ke]
+
+    archivo = (
+        BASE
+        / f"Datos/k{ke}/EQUIP_E"
+        / f"Energia_Rg_Ree_N{N}_ke{ke}_{etiqueta}.txt"
+    )
+
+    if not archivo.exists():
+        print("No encontrado:", archivo)
+        return
+
+    datos = np.loadtxt(archivo, comments="#")
+
+    if datos.ndim != 2 or datos.shape[1] < 13:
+        raise ValueError(
+            f"Formato inesperado en {archivo.name}"
+        )
+
+    # Columnas
+    # 0 = tiempo
+    # 7 = K acumulada
+    # 8 = V acumulada
+
+    t = datos[:, 0]
+    K_acum = datos[:, 7]
+    V_acum = datos[:, 8]
+
+    # --------------------------------------------------------
+    # VALORES TEORICOS
+    # --------------------------------------------------------
+
+    K_teo = energia_cinetica_teorica(N)
+
+    V_arm, V_jac = energia_potencial_teorica(N, ke)
+
+    # --------------------------------------------------------
+    # NORMALIZACION
+    # --------------------------------------------------------
+
+    K_norm = K_acum / K_teo
+    V_norm = V_acum / V_jac
+
+    # --------------------------------------------------------
+    # SELECCION TEMPORAL
+    # --------------------------------------------------------
+
+    t_max = t[-1] * FRACCION_TIEMPO
+
+    seleccion = t <= t_max
+
+    # --------------------------------------------------------
+    # FIGURA: UN SOLO PANEL
+    # --------------------------------------------------------
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    ax.plot(
+        t[seleccion],
+        K_norm[seleccion],
+        color="tab:blue",
+        linewidth=1.6,
+        label=r"$\overline{K}(t)/\langle K\rangle_{\mathrm{teo}}$"
+    )
+
+    ax.plot(
+        t[seleccion],
+        V_norm[seleccion],
+        color="tab:red",
+        linewidth=1.6,
+        label=r"$\overline{V}(t)/\langle V\rangle_{\mathrm{Jac}}$"
+    )
+
+    ax.axhline(
+        1.0,
+        color="tab:green",
+        linestyle="--",
+        linewidth=1.6,
+        label=r"Equilibrio teórico: $1$"
+    )
+
+    # --------------------------------------------------------
+    # LEYENDA CON VALORES FINALES
+    # --------------------------------------------------------
+
+    K_final = K_norm[-1]
+    V_final = V_norm[-1]
+
+    ax.plot(
+        [],
+        [],
+        " ",
+        label=(
+            rf"Final: "
+            rf"$\overline{{K}}/K_{{\mathrm{{teo}}}}"
+            rf"={K_final:.4f}$"
+        )
+    )
+
+    ax.plot(
+        [],
+        [],
+        " ",
+        label=(
+            rf"Final: "
+            rf"$\overline{{V}}/V_{{\mathrm{{Jac}}}}"
+            rf"={V_final:.4f}$"
+        )
+    )
+
+    # --------------------------------------------------------
+    # FORMATO
+    # --------------------------------------------------------
+
+    ax.set_xlabel(
+        "Tiempo",
+        fontsize=12
+    )
+
+    ax.set_ylabel(
+        "Energía normalizada",
+        fontsize=12
+    )
+
+    ax.set_title(
+        rf"Energías normalizadas "
+        rf"($N={N}$, $k_e={ke}$ )",
+        fontsize=14
+    )
+
+
+    # Ajustar escala vertical solo para N=4 con ke=100
+    if ke == 100 and N == 4:
+        ax.set_ylim(0.8, 1.7)
+
+    if ke == 100 and N == 40:
+        ax.set_ylim(0.80, 1.1)
+
+    if ke == 100 and N == 64:
+            ax.set_ylim(0.900, 1.150)
+
+    ax.grid(alpha=0.25)
+    
+    ax.legend(
+        fontsize=10,
+        loc="best",
+        framealpha=0.95
+    )
+
+    fig.tight_layout()
+
+    # --------------------------------------------------------
+    # GUARDAR EN LA CARPETA CORRESPONDIENTE
+    # --------------------------------------------------------
+
+    carpeta_salida = (
+        BASE
+        / "EQUIP_E"
+        / f"k{ke}"
+    )
+
+    carpeta_salida.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    destino = (
+        carpeta_salida
+        / (
+            f"Energias_normalizadas_N{N}"
+            f"_ke{ke}_{etiqueta}_Claudia.png"
+        )
+    )
+
+    fig.savefig(
+        destino,
+        dpi=250,
+        bbox_inches="tight"
+    )
+
+    plt.close(fig)
+
+    print(
+        f"N={N:2d}, ke={ke:4d} | "
+        f"K_norm={K_final:.5f} | "
+        f"V_norm={V_final:.5f}"
+    )
+
+    print("Guardada:", destino)
+
+
+# ============================================================
+# 4. EJECUTAR
+# ============================================================
+
+for ke in KE_VALORES:
+
+    print("\n" + "=" * 55)
+    print(f"ENERGIAS NORMALIZADAS - ke={ke}")
+    print("=" * 55)
+
+    for N in N_VALORES:
+
+        graficar_energia(N, ke)
+
+print("\nFINALIZADO: 10 GRAFICAS GENERADAS.")
+
+
+# %%
