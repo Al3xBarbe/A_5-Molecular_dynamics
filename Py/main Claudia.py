@@ -3902,3 +3902,802 @@ print("Radio de giro:", salida_rg)
 print("Distancia entre extremos:", salida_ree)
 
 # %%
+
+
+
+
+
+
+
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 3: GRAFICAS CON BARRAS DE ERROR
+# AJUSTES PONDERADOS Y FORMULAS EN LAS LEYENDAS
+#
+# ke = 100 y ke = 1000
+#
+# 26 GRAFICAS:
+# - 4 ajustes lineales de radios al cuadrado
+# - 16 ajustes potenciales (normal y log-log)
+# - 6 comparaciones entre constantes elasticas
+#
+# Los errores proceden de los 20 bloques originales.
+# ============================================================
+
+import csv
+from pathlib import Path
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+# ============================================================
+# 1. RUTAS Y PARAMETROS
+# ============================================================
+
+BASE = (
+    Path.home()
+    / "Documents/A_5-Molecular_dynamics"
+    / "Py/plots/OBJETIVO_3"
+)
+
+KE_VALORES = (100, 1000)
+
+L0 = 1.0
+KBT = 1.0
+B = 20
+
+COLORES = {
+    100: "tab:blue",
+    1000: "tab:red"
+}
+
+MARCADORES = {
+    100: "o",
+    1000: "s"
+}
+
+
+# ============================================================
+# 2. CARGAR CSV DE ERRORES
+# ============================================================
+
+def cargar_csv(tipo, ke):
+
+    ruta = (
+        BASE / tipo / f"k{ke}"
+        / f"Errores_{tipo}_ke{ke}_Claudia.csv"
+    )
+
+    if not ruta.exists():
+        raise FileNotFoundError(
+            f"No encuentro el archivo:\n{ruta}"
+        )
+
+    with ruta.open(newline="") as archivo:
+        filas = list(csv.DictReader(archivo))
+
+    if not filas:
+        raise ValueError(f"El CSV esta vacio: {ruta}")
+
+    resultado = {
+        k: np.array([float(f[k]) for f in filas])
+        for k in filas[0]
+    }
+
+    orden = np.argsort(resultado["N"])
+
+    resultado = {
+        k: v[orden]
+        for k, v in resultado.items()
+    }
+
+    if np.any(resultado["numero_bloques"] != B):
+        raise ValueError(
+            f"El archivo {ruta.name} no utiliza "
+            f"{B} bloques en todos los puntos."
+        )
+
+    return resultado
+
+
+# ============================================================
+# 3. EXPRESIONES TEORICAS
+# ============================================================
+
+def b2_elastico(ke):
+
+    sigma2 = KBT / ke
+
+    return (
+        L0**4
+        + 6 * L0**2 * sigma2
+        + 3 * sigma2**2
+    ) / (L0**2 + sigma2)
+
+
+def valor_teorico(N, tipo, modo, b2):
+
+    N = np.asarray(N, dtype=float)
+
+    if tipo == "RG":
+
+        cuadrado = (
+            (N**2 - 1) * b2 / (6 * N)
+        )
+
+    elif tipo == "REE":
+
+        cuadrado = (
+            (N - 1) * b2
+        )
+
+    else:
+        raise ValueError("Radio desconocido")
+
+    if modo == "cuadrado":
+        return cuadrado
+
+    return np.sqrt(cuadrado)
+
+
+# ============================================================
+# 4. EXTRAER MEDIAS Y ERRORES
+# ============================================================
+
+def extraer(datos, modo):
+
+    columnas = {
+        "cuadrado": ("media2", "error_media2"),
+        "RMS": ("RMS", "error_RMS"),
+        "media": ("media", "error_media")
+    }
+
+    columna_y, columna_error = columnas[modo]
+
+    y = datos[columna_y]
+    error = datos[columna_error]
+
+    if np.any(~np.isfinite(y)):
+        raise ValueError("Hay valores no finitos")
+
+    if np.any(~np.isfinite(error)) or np.any(error <= 0):
+        raise ValueError(
+            "Las incertidumbres deben ser positivas y finitas"
+        )
+
+    return y, error
+
+
+# ============================================================
+# 5. AJUSTES PONDERADOS
+# ============================================================
+
+def ajustar(N, y, error, potencial=False):
+
+    if potencial:
+
+        if np.any(y <= 0):
+            raise ValueError(
+                "El ajuste potencial necesita valores positivos"
+            )
+
+        x_fit = np.log(N)
+        y_fit = np.log(y)
+
+        # Propagacion de incertidumbre:
+        # sigma_lnR = sigma_R / R
+
+        error_fit = error / y
+
+    else:
+
+        x_fit = N
+        y_fit = y
+        error_fit = error
+
+    # np.polyfit minimiza:
+    # sum((w_i * residuo_i)**2)
+    #
+    # Para chi-cuadrado:
+    # w_i = 1 / sigma_i
+
+    coef, cov = np.polyfit(
+        x_fit,
+        y_fit,
+        1,
+        w=1 / error_fit,
+        cov="unscaled"
+    )
+
+    incertidumbres = np.sqrt(np.diag(cov))
+
+    residuos = y_fit - np.polyval(coef, x_fit)
+
+    chi2 = np.sum((residuos / error_fit)**2)
+
+    grados_libertad = len(N) - 2
+
+    return (
+        coef,
+        incertidumbres,
+        chi2,
+        grados_libertad
+    )
+
+
+# ============================================================
+# 6. GUARDAR GRAFICAS
+# ============================================================
+
+def guardar(fig, destino):
+
+    destino.parent.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    fig.savefig(
+        destino,
+        dpi=250,
+        bbox_inches="tight"
+    )
+
+    plt.close(fig)
+
+    print(
+        "Guardada:",
+        destino.relative_to(BASE)
+    )
+
+
+# ============================================================
+# 7. ETIQUETAS DE LOS RADIOS
+# ============================================================
+
+def rotulo(tipo, modo):
+
+    simbolo = (
+        "R_g" if tipo == "RG"
+        else "R_{ee}"
+    )
+
+    if modo == "cuadrado":
+
+        return (
+            rf"$\langle {simbolo}^2\rangle$"
+        )
+
+    if modo == "RMS":
+
+        return (
+            rf"$\sqrt{{\langle {simbolo}^2\rangle}}$"
+        )
+
+    return (
+        rf"$\langle {simbolo}\rangle$"
+    )
+
+
+# ============================================================
+# 8. FORMULAS TEORICAS EN LAS LEYENDAS
+# ============================================================
+
+def formula_teorica(tipo, modo, b2, prefijo="Teoría"):
+
+    if tipo == "RG":
+        expresion = r"\frac{N^2-1}{6N}b^2"
+    else:
+        expresion = r"(N-1)b^2"
+
+    if modo == "cuadrado":
+        return prefijo + ": " + rf"${expresion}$"
+
+    return prefijo + ": " + rf"$\sqrt{{{expresion}}}$"
+
+
+# ============================================================
+# 9. LEYENDA DEL ERROR ESTADISTICO
+# ============================================================
+
+def leyenda_error():
+
+    return (
+        rf"Simulación: "
+        rf"$\Delta\overline{{X}}="
+        rf"s_b/\sqrt{{{B}}}$"
+    )
+
+
+# ============================================================
+# 10. GRAFICAS DE AJUSTES
+# ============================================================
+
+def dibujar_ajuste(tipo, ke, datos, modo, escala):
+
+    N = datos["N"]
+
+    y, error = extraer(datos, modo)
+
+    potencial = modo != "cuadrado"
+
+    coef, inc, chi2, gl = ajustar(
+        N,
+        y,
+        error,
+        potencial
+    )
+
+    Nx = np.linspace(
+        N.min(),
+        N.max(),
+        400
+    )
+
+    # --------------------------------------------------------
+    # AJUSTE POTENCIAL
+    # --------------------------------------------------------
+
+    if potencial:
+
+        nu, logA = coef
+        nu_error, logA_error = inc
+
+        A = np.exp(logA)
+        A_error = A * logA_error
+
+        curva = A * Nx**nu
+
+        texto_ajuste = (
+            rf"Ajuste: "
+            rf"$R=({A:.4f}\pm{A_error:.4f})"
+            rf"N^{{{nu:.4f}\pm{nu_error:.4f}}}$"
+        )
+
+        resumen = [
+            tipo, ke, modo, escala,
+            "nu", nu, nu_error,
+            "A", A, A_error,
+            chi2, gl
+        ]
+
+    # --------------------------------------------------------
+    # AJUSTE LINEAL
+    # --------------------------------------------------------
+
+    else:
+
+        a, c = coef
+        error_a, error_c = inc
+
+        curva = a * Nx + c
+
+        texto_ajuste = (
+            rf"Ajuste: "
+            rf"$y=({a:.5f}\pm{error_a:.5f})N"
+            rf"+({c:.5f}\pm{error_c:.5f})$"
+        )
+
+        resumen = [
+            tipo, ke, modo, escala,
+            "a", a, error_a,
+            "c", c, error_c,
+            chi2, gl
+        ]
+
+    # ========================================================
+    # FIGURA
+    # ========================================================
+
+    fig, ax = plt.subplots(
+        figsize=(10, 6)
+    )
+
+    # --------------------------------------------------------
+    # DATOS SIMULADOS CON BARRAS DE ERROR
+    # --------------------------------------------------------
+
+    ax.errorbar(
+        N,
+        y,
+        yerr=error,
+        fmt="o",
+        linestyle="none",
+        color="tab:blue",
+        ecolor="tab:blue",
+        elinewidth=1.2,
+        capsize=4,
+        capthick=1.2,
+        markersize=5.5,
+        zorder=4,
+        label=leyenda_error()
+    )
+
+    # --------------------------------------------------------
+    # AJUSTE PONDERADO
+    # --------------------------------------------------------
+
+    ax.plot(
+        Nx,
+        curva,
+        color="tab:red",
+        linewidth=1.7,
+        label=texto_ajuste
+    )
+
+    # --------------------------------------------------------
+    # TEORIA
+    # --------------------------------------------------------
+
+    modo_teoria = (
+        "cuadrado"
+        if modo == "cuadrado"
+        else "RMS"
+    )
+
+    b2 = b2_elastico(ke)
+
+    if modo == "media":
+        prefijo = "Referencia RMS"
+    else:
+        prefijo = "Teoría"
+
+    ax.plot(
+        Nx,
+        valor_teorico(
+            Nx,
+            tipo,
+            modo_teoria,
+            b2
+        ),
+        color="tab:green",
+        linestyle="--",
+        linewidth=1.5,
+        label=formula_teorica(
+            tipo,
+            modo_teoria,
+            b2,
+            prefijo
+        )
+    )
+
+    # --------------------------------------------------------
+    # ESCALAS
+    # --------------------------------------------------------
+
+    if escala == "loglog":
+
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+
+    # --------------------------------------------------------
+    # ETIQUETAS
+    # --------------------------------------------------------
+
+    ax.set_xlabel(
+        "Número de monómeros N",
+        fontsize=12
+    )
+
+    ax.set_ylabel(
+        rotulo(tipo, modo),
+        fontsize=12
+    )
+
+    ax.set_title(
+        rf"{rotulo(tipo, modo)} frente a $N$ "
+        rf"($k_e={ke}$)",
+        fontsize=13
+    )
+
+    ax.grid(
+        alpha=0.25,
+        which="both"
+    )
+
+    ax.legend(
+        fontsize=9,
+        loc="best",
+        framealpha=0.95
+    )
+
+    fig.tight_layout()
+
+    # --------------------------------------------------------
+    # GUARDAR
+    # --------------------------------------------------------
+
+    subcarpeta = (
+        "cuadrado"
+        if modo == "cuadrado"
+        else "normal"
+    )
+
+    destino = (
+        BASE
+        / tipo
+        / f"k{ke}"
+        / subcarpeta
+        / (
+            f"{tipo}_{modo}_ajuste_{escala}"
+            f"_ke{ke}_CON_ERRORES_Claudia.png"
+        )
+    )
+
+    guardar(fig, destino)
+
+    return resumen
+
+
+# ============================================================
+# 11. GRAFICAS COMPARATIVAS
+# ============================================================
+
+def dibujar_comparacion(tipo, modo, todos):
+
+    fig, ax = plt.subplots(
+        figsize=(10, 6)
+    )
+
+    N_total = np.concatenate([
+        todos[(tipo, ke)]["N"]
+        for ke in KE_VALORES
+    ])
+
+    Nx = np.linspace(
+        N_total.min(),
+        N_total.max(),
+        400
+    )
+
+    # --------------------------------------------------------
+    # SIMULACIONES Y TEORIAS ELASTICAS
+    # --------------------------------------------------------
+
+    for ke in KE_VALORES:
+
+        datos = todos[(tipo, ke)]
+
+        N = datos["N"]
+
+        y, error = extraer(datos, modo)
+
+        color = COLORES[ke]
+
+        # DATOS SIMULADOS
+        # SOLO PUNTOS CON BARRAS, SIN LINEAS DE UNION
+
+        ax.errorbar(
+            N,
+            y,
+            yerr=error,
+            fmt=MARCADORES[ke],
+            linestyle="none",
+            color=color,
+            ecolor=color,
+            elinewidth=1.2,
+            capsize=4,
+            capthick=1.2,
+            markersize=5.5,
+            zorder=4,
+            label=(
+                rf"Simulación $k_e={ke}$"
+                rf" ($\Delta\overline{{X}}="
+                rf"s_b/\sqrt{{{B}}}$)"
+            )
+        )
+
+        # ----------------------------------------------------
+        # TEORIA ELASTICA
+        # ----------------------------------------------------
+
+        if modo != "media":
+
+            b2 = b2_elastico(ke)
+
+            ax.plot(
+                Nx,
+                valor_teorico(
+                    Nx,
+                    tipo,
+                    modo,
+                    b2
+                ),
+                color=color,
+                linestyle="--",
+                linewidth=1.4,
+                label=formula_teorica(
+                    tipo,
+                    modo,
+                    b2,
+                    rf"Teoría $k_e={ke}$"
+                )
+            )
+
+    # --------------------------------------------------------
+    # MODELO DE ENLACES RIGIDOS
+    # --------------------------------------------------------
+
+    if modo != "media":
+
+        b2_rigido = L0**2
+
+        ax.plot(
+            Nx,
+            valor_teorico(
+                Nx,
+                tipo,
+                modo,
+                b2_rigido
+            ),
+            color="tab:green",
+            linestyle="-.",
+            linewidth=1.7,
+            label=formula_teorica(
+                tipo,
+                modo,
+                b2_rigido,
+                "Modelo rígido"
+            )
+        )
+
+    # --------------------------------------------------------
+    # ETIQUETAS
+    # --------------------------------------------------------
+
+    ax.set_xlabel(
+        "Número de monómeros N",
+        fontsize=12
+    )
+
+    ax.set_ylabel(
+        rotulo(tipo, modo),
+        fontsize=12
+    )
+
+    ax.set_title(
+        rf"Comparación de {rotulo(tipo, modo)}",
+        fontsize=13
+    )
+
+    ax.grid(alpha=0.25)
+
+    ax.legend(
+        fontsize=8,
+        loc="best",
+        framealpha=0.95
+    )
+
+    fig.tight_layout()
+
+    # --------------------------------------------------------
+    # GUARDAR DIRECTAMENTE EN RG O REE
+    # --------------------------------------------------------
+
+    nombre = (
+        f"Comparacion_{tipo}_{modo}"
+        "_ke100_ke1000_rigido"
+        "_CON_ERRORES_Claudia.png"
+    )
+
+    destino = BASE / tipo / nombre
+
+    guardar(fig, destino)
+
+
+# ============================================================
+# 12. CARGAR TODOS LOS DATOS
+# ============================================================
+
+todos = {
+    (tipo, ke): cargar_csv(tipo, ke)
+    for tipo in ("RG", "REE")
+    for ke in KE_VALORES
+}
+
+
+# ============================================================
+# 13. GENERAR AJUSTES
+# ============================================================
+
+resumen = []
+
+for tipo in ("RG", "REE"):
+
+    for ke in KE_VALORES:
+
+        datos = todos[(tipo, ke)]
+
+        # ----------------------------------------------------
+        # AJUSTE LINEAL DE <R²>
+        # ----------------------------------------------------
+
+        resumen.append(
+            dibujar_ajuste(
+                tipo,
+                ke,
+                datos,
+                "cuadrado",
+                "lineal"
+            )
+        )
+
+        # ----------------------------------------------------
+        # AJUSTES POTENCIALES DE RMS Y MEDIA
+        # ----------------------------------------------------
+
+        for modo in ("RMS", "media"):
+
+            for escala in ("normal", "loglog"):
+
+                resumen.append(
+                    dibujar_ajuste(
+                        tipo,
+                        ke,
+                        datos,
+                        modo,
+                        escala
+                    )
+                )
+
+    # --------------------------------------------------------
+    # COMPARACIONES ke100, ke1000 Y MODELO RIGIDO
+    # --------------------------------------------------------
+
+    for modo in ("cuadrado", "RMS", "media"):
+
+        dibujar_comparacion(
+            tipo,
+            modo,
+            todos
+        )
+
+
+# ============================================================
+# 14. GUARDAR RESULTADOS DE LOS AJUSTES
+# ============================================================
+
+salida_csv = (
+    BASE
+    / "Resumen_ajustes_ponderados_CON_ERRORES_Claudia.csv"
+)
+
+with salida_csv.open("w", newline="") as archivo:
+
+    writer = csv.writer(archivo)
+
+    writer.writerow([
+        "radio",
+        "ke",
+        "magnitud",
+        "escala",
+        "parametro1",
+        "valor1",
+        "error1",
+        "parametro2",
+        "valor2",
+        "error2",
+        "chi2",
+        "grados_libertad"
+    ])
+
+    writer.writerows(resumen)
+
+
+# ============================================================
+# 15. FINAL
+# ============================================================
+
+print("\n" + "=" * 65)
+print("ANALISIS FINALIZADO")
+print("=" * 65)
+
+print("20 graficas de ajustes ponderados")
+print("6 graficas comparativas")
+print("26 graficas en total")
+print("CSV de parametros y errores guardado")
+print("\nTodos los archivos nuevos incluyen CON_ERRORES.")
+# %%
