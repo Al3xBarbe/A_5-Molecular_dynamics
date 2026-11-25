@@ -4811,3 +4811,635 @@ print("Resumen guardado en:")
 print(salida_csv)
 
 
+
+
+
+
+
+
+
+
+
+
+# %%
+# ============================================================
+# OBJETIVO 3 - CONVERGENCIA DE LOS OBSERVABLES
+#
+# FIGURA 1: Energias normalizadas
+# FIGURA 2: Radios cuadrados normalizados
+# FIGURA 3: Comparacion de valores finales con la teoria
+#
+# ke = 100 y ke = 1000
+# ============================================================
+
+from pathlib import Path
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+
+
+# ============================================================
+# 1. PARAMETROS GENERALES
+# ============================================================
+
+BASE = (
+    Path.home()
+    / "Documents/A_5-Molecular_dynamics"
+    / "Py/plots/OBJETIVO_3"
+)
+
+SALIDA = BASE / "CONVERGENCIA_COMPARATIVA"
+
+SALIDA.mkdir(parents=True, exist_ok=True)
+
+# Valores de N para las graficas temporales
+
+N_SELECCIONADOS = [8, 24, 48]
+
+# Valores de N para la grafica resumen
+
+N_TODOS = [4, 8, 12, 16, 20, 24, 32, 40, 48, 64]
+
+KE_VALORES = [100, 1000]
+
+ETIQUETAS = {
+    100: "SUPERLARGA",
+    1000: "ULTRALARGA"
+}
+
+L0 = 1.0
+KBT = 1.0
+
+# Fraccion del tiempo de produccion representada
+# 1.0 = trayectoria completa
+# 0.1 = primer 10 %
+
+FRACCION_TIEMPO = 1.0
+
+
+# ============================================================
+# 2. COLORES Y ESTILOS
+# ============================================================
+
+COLORES = {
+    "K": "#2166AC",
+    "V": "#C43C39",
+    "RG2": "#803DA5",
+    "REE2": "#E68A19"
+}
+
+ESTILOS = {
+    N_SELECCIONADOS[0]: "-",
+    N_SELECCIONADOS[1]: (0, (8, 4)),
+    N_SELECCIONADOS[2]: (0, (2, 2))
+}
+
+ETIQUETAS_MAGNITUD = {
+    "K": "Energía cinética",
+    "V": "Energía potencial",
+    "RG2": "Radio de giro al cuadrado",
+    "REE2": "Radio de extremo a extremo al cuadrado"
+}
+
+FORMULAS = {
+    "K": r"$\overline{K}/\langle K\rangle_{\mathrm{teo}}$",
+    "V": r"$\overline{V}/\langle V\rangle_{\mathrm{Jac}}$",
+    "RG2": r"$\overline{R_g^2}/\langle R_g^2\rangle_{\mathrm{teo}}$",
+    "REE2": r"$\overline{R_{ee}^2}/\langle R_{ee}^2\rangle_{\mathrm{teo}}$"
+}
+
+
+# ============================================================
+# 3. VALORES TEORICOS
+# ============================================================
+
+def b2_teorico(ke):
+
+    sigma2 = KBT / ke
+
+    return (
+        L0**4
+        + 6 * L0**2 * sigma2
+        + 3 * sigma2**2
+    ) / (L0**2 + sigma2)
+
+
+def valores_teoricos(N, ke):
+
+    sigma2 = KBT / ke
+
+    b2 = b2_teorico(ke)
+
+    # Energia cinetica: equiparticion
+
+    K_teo = 1.5 * N * KBT
+
+    # Energia potencial con correccion jacobiana
+
+    V_teo = (
+        0.5 * (N - 1) * KBT
+        * (L0**2 + 3 * sigma2)
+        / (L0**2 + sigma2)
+    )
+
+    # Radio de giro al cuadrado
+
+    RG2_teo = (
+        (N**2 - 1) / (6 * N)
+    ) * b2
+
+    # Radio de extremo a extremo al cuadrado
+
+    REE2_teo = (N - 1) * b2
+
+    return {
+        "K": K_teo,
+        "V": V_teo,
+        "RG2": RG2_teo,
+        "REE2": REE2_teo
+    }
+
+
+# ============================================================
+# 4. CARGAR DATOS DE LAS SIMULACIONES
+# ============================================================
+
+def carpeta_datos(ke):
+
+    return (
+        BASE
+        / "Datos"
+        / f"k{ke}"
+        / "EQUIP_E"
+    )
+
+
+def cargar_simulacion(N, ke):
+
+    etiqueta = ETIQUETAS[ke]
+
+    archivo = (
+        carpeta_datos(ke)
+        / f"Energia_Rg_Ree_N{N}_ke{ke}_{etiqueta}.txt"
+    )
+
+    if not archivo.exists():
+
+        raise FileNotFoundError(
+            f"No encuentro el archivo:\n{archivo}"
+        )
+
+    datos = np.loadtxt(archivo, ndmin=2)
+
+    if datos.shape[1] < 13:
+
+        raise ValueError(
+            f"Numero de columnas incorrecto:\n{archivo}"
+        )
+
+    return {
+        "t": datos[:, 0],
+        "K": datos[:, 7],
+        "V": datos[:, 8],
+        "RG2": datos[:, 11],
+        "REE2": datos[:, 12]
+    }
+
+
+# ============================================================
+# 5. CARGAR MEDIAS DE BLOQUE
+# ============================================================
+
+def cargar_bloques(N, ke):
+
+    etiqueta = ETIQUETAS[ke]
+
+    archivo = (
+        carpeta_datos(ke)
+        / f"Bloques_N{N}_ke{ke}_{etiqueta}.txt"
+    )
+
+    if not archivo.exists():
+
+        raise FileNotFoundError(
+            f"No encuentro el archivo:\n{archivo}"
+        )
+
+    datos = np.loadtxt(archivo, ndmin=2)
+
+    if datos.shape[0] != 20:
+
+        raise ValueError(
+            f"Se esperaban 20 bloques:\n{archivo}"
+        )
+
+    if datos.shape[1] < 9:
+
+        raise ValueError(
+            f"Numero de columnas incorrecto:\n{archivo}"
+        )
+
+    return {
+        "K": datos[:, 3],
+        "V": datos[:, 4],
+        "RG2": datos[:, 7],
+        "REE2": datos[:, 8]
+    }
+
+
+# ============================================================
+# 6. MEDIA Y ERROR ESTANDAR POR BLOQUES
+# ============================================================
+
+def media_error_bloques(x):
+
+    B = len(x)
+
+    media = np.mean(x)
+
+    desviacion = np.std(x, ddof=1)
+
+    error = desviacion / np.sqrt(B)
+
+    return media, error
+
+
+# ============================================================
+# 7. LEYENDA GENERAL DE LAS GRAFICAS TEMPORALES
+# ============================================================
+
+def crear_leyenda_temporal(fig, magnitudes):
+
+    # Leyenda de colores: identifica el observable
+
+    elementos_magnitudes = []
+
+    for magnitud in magnitudes:
+
+        elementos_magnitudes.append(
+            Line2D(
+                [0], [0],
+                color=COLORES[magnitud],
+                linewidth=2,
+                linestyle="-",
+                label=FORMULAS[magnitud]
+            )
+        )
+
+    # Referencia teorica
+
+    elementos_magnitudes.append(
+        Line2D(
+            [0], [0],
+            color="black",
+            linewidth=1.4,
+            linestyle="-.",
+            label="Referencia teórica = 1"
+        )
+    )
+
+    # Leyenda de estilos: identifica N
+
+    elementos_N = []
+
+    for N in N_SELECCIONADOS:
+
+        elementos_N.append(
+            Line2D(
+                [0], [0],
+                color="#555555",
+                linewidth=2,
+                linestyle=ESTILOS[N],
+                label=rf"$N={N}$"
+            )
+        )
+
+    fig.legend(
+        handles=elementos_magnitudes + elementos_N,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.015),
+        ncol=3,
+        fontsize=11,
+        frameon=True,
+        handlelength=3.5,
+        columnspacing=2.0
+    )
+
+
+# ============================================================
+# 8. FUNCION GENERAL PARA GRAFICAS TEMPORALES
+# ============================================================
+
+def grafica_convergencia(
+    magnitudes,
+    titulo,
+    nombre_archivo
+):
+
+    fig, axes = plt.subplots(
+        1, 2,
+        figsize=(13, 6.5),
+        sharey=True
+    )
+
+    for ax, ke in zip(axes, KE_VALORES):
+
+        for N in N_SELECCIONADOS:
+
+            datos = cargar_simulacion(N, ke)
+
+            teoricos = valores_teoricos(N, ke)
+
+            t = datos["t"]
+
+            tiempo_max = (
+                t[0]
+                + FRACCION_TIEMPO * (t[-1] - t[0])
+            )
+
+            mascara = t <= tiempo_max
+
+            for magnitud in magnitudes:
+
+                normalizado = (
+                    datos[magnitud]
+                    / teoricos[magnitud]
+                )
+
+                ax.plot(
+                    t[mascara],
+                    normalizado[mascara],
+                    color=COLORES[magnitud],
+                    linestyle=ESTILOS[N],
+                    linewidth=1.4,
+                    alpha=0.95
+                )
+
+        # Referencia de equilibrio teorico
+
+        ax.axhline(
+            1.0,
+            color="black",
+            linestyle="-.",
+            linewidth=1.3,
+            alpha=0.85,
+            zorder=0
+        )
+
+        ax.set_title(
+            rf"$k_e={ke}$",
+            fontsize=15
+        )
+
+        ax.set_xlabel(
+            "Tiempo de producción",
+            fontsize=12
+        )
+
+        ax.grid(
+            alpha=0.20
+        )
+
+        if magnitudes == ["K", "V"]:
+            ax.set_ylim(0.95, 1.15)
+
+        elif magnitudes == ["RG2", "REE2"]:
+            ax.set_ylim(0.85, 1.15) 
+
+        ax.ticklabel_format(
+            axis="x",
+            style="sci",
+            scilimits=(0, 0)
+        )
+
+    axes[0].set_ylabel(
+        "Valor medio acumulado normalizado",
+        fontsize=12
+    )
+
+    fig.suptitle(
+        titulo,
+        fontsize=17,
+        y=0.97
+    )
+
+    crear_leyenda_temporal(
+        fig,
+        magnitudes
+    )
+
+    fig.tight_layout(
+        rect=[0, 0.14, 1, 0.93]
+    )
+
+    ruta = SALIDA / nombre_archivo
+
+    fig.savefig(
+        ruta,
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.show()
+    plt.close(fig)
+
+    print("Guardada:", ruta)
+
+
+# ============================================================
+# 9. FIGURA 1 - CONVERGENCIA DE LAS ENERGIAS
+# ============================================================
+
+grafica_convergencia(
+    magnitudes=["K", "V"],
+    titulo="Convergencia de las energías normalizadas",
+    nombre_archivo="Convergencia_energias_comparativa_Claudia.png"
+)
+
+
+# ============================================================
+# 10. FIGURA 2 - CONVERGENCIA DE LOS RADIOS
+# ============================================================
+
+grafica_convergencia(
+    magnitudes=["RG2", "REE2"],
+    titulo="Convergencia de los radios cuadrados normalizados",
+    nombre_archivo="Convergencia_radios_comparativa_Claudia.png"
+)
+
+
+# ============================================================
+# 11. FIGURA 3 - VALORES FINALES NORMALIZADOS
+#
+# Todos los N y las dos constantes elasticas
+# Barras de error calculadas con los 20 bloques
+# ============================================================
+
+fig, axes = plt.subplots(
+    1, 2,
+    figsize=(14, 6),
+    sharey=True
+)
+
+MAGNITUDES = ["K", "V", "RG2", "REE2"]
+
+# Pequeno desplazamiento horizontal para evitar
+# que las barras de error de las cuatro magnitudes
+# se superpongan completamente.
+
+DESPLAZAMIENTOS = {
+    "K": -0.9,
+    "V": -0.3,
+    "RG2": 0.3,
+    "REE2": 0.9
+}
+
+# Guardar las medias y errores normalizados
+
+for ax, ke in zip(axes, KE_VALORES):
+
+    resultados = {
+        magnitud: {
+            "media": [],
+            "error": []
+        }
+        for magnitud in MAGNITUDES
+    }
+
+    for N in N_TODOS:
+
+        bloques = cargar_bloques(N, ke)
+
+        teoricos = valores_teoricos(N, ke)
+
+        for magnitud in MAGNITUDES:
+
+            media, error = media_error_bloques(
+                bloques[magnitud]
+            )
+
+            media_norm = (
+                media / teoricos[magnitud]
+            )
+
+            error_norm = (
+                error / teoricos[magnitud]
+            )
+
+            resultados[magnitud]["media"].append(
+                media_norm
+            )
+
+            resultados[magnitud]["error"].append(
+                error_norm
+            )
+
+    # Representar los cuatro observables
+
+    for magnitud in MAGNITUDES:
+
+        N_grafica = (
+            np.array(N_TODOS, dtype=float)
+            + DESPLAZAMIENTOS[magnitud]
+        )
+
+        ax.errorbar(
+            N_grafica,
+            resultados[magnitud]["media"],
+            yerr=resultados[magnitud]["error"],
+            fmt="o",
+            linestyle="none",
+            color=COLORES[magnitud],
+            ecolor=COLORES[magnitud],
+            markerfacecolor="none",
+            markeredgewidth=1.1,
+            markersize=3.5,
+            elinewidth=1.2,
+            capsize=3,
+            capthick=1.1,
+            label=FORMULAS[magnitud],
+            zorder=5
+        )
+
+    ax.axhline(
+        1.0,
+        color="black",
+        linestyle="-.",
+        linewidth=1.4,
+        label="Referencia teórica = 1"
+    )
+
+    ax.set_title(
+        rf"$k_e={ke}$",
+        fontsize=15
+    )
+
+    ax.set_xlabel(
+        "Número de monómeros $N$",
+        fontsize=12
+    )
+
+    ax.set_xticks(N_TODOS)
+
+    ax.grid(
+        alpha=0.20
+    )
+
+
+axes[0].set_ylabel(
+    "Valor medio normalizado",
+    fontsize=12
+)
+
+fig.suptitle(
+    "Comparación de los observables de equilibrio con la teoría",
+    fontsize=16
+)
+
+handles, labels = axes[0].get_legend_handles_labels()
+
+fig.legend(
+    handles,
+    labels,
+    loc="lower center",
+    bbox_to_anchor=(0.5, 0.015),
+    ncol=3,
+    fontsize=11,
+    frameon=True,
+    columnspacing=2.0
+)
+
+fig.tight_layout(
+    rect=[0, 0.15, 1, 0.93]
+)
+
+ruta = (
+    SALIDA
+    / "Resumen_observables_normalizados_Claudia.png"
+)
+
+fig.savefig(
+    ruta,
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.show()
+plt.close(fig)
+
+print("Guardada:", ruta)
+
+
+# ============================================================
+# 12. FIN
+# ============================================================
+
+print("\n" + "=" * 60)
+print("ANALISIS FINALIZADO")
+print("=" * 60)
+
+print("3 figuras comparativas generadas")
+print("Carpeta de salida:")
+print(SALIDA)
+
+# %%
